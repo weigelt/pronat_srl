@@ -38,12 +38,12 @@
 			<artifactId>luna</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>edu.kit.ipd.parse</groupId>
-			<artifactId>parseBios</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>org.kohsuke.metainf-services</groupId>
 			<artifactId>metainf-services</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>edu.kit.ipd.parse</groupId>
+			<artifactId>ShallowNLP</artifactId>
 		</dependency>
 	</dependencies>
 </project>
