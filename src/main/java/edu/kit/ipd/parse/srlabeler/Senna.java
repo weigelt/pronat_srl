@@ -136,7 +136,7 @@ public class Senna {
 	 */
 	private File excecuteSenna(File tempInputFile) throws IOException, URISyntaxException, InterruptedException {
 		File tempOutputFile = File.createTempFile("output", "txt");
-		logger.debug("path {}", Paths.get(this.getClass().getResource("senna").toURI()));
+		logger.debug("path {}", Paths.get(this.getClass().getResource("/senna").toURI()));
 		Path resourcePath = Paths.get(getClass().getResource("/senna").toURI());
 		//Path resourcePath = Paths.get("/home/seb/Downloads/senna");
 		ProcessBuilder builder = createSennaProcess(resourcePath, props.getProperty("SENNA_OPTIONS").split(","), tempInputFile,

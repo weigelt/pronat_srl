@@ -1,5 +1,6 @@
 package edu.kit.ipd.parse.srlabeler;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,8 +24,10 @@ public class WordSrlType {
 	}
 
 	public void append(WordSrlType type) {
-		List<String> combinedWords = Arrays.asList(this.words);
-		combinedWords.addAll(Arrays.asList(type.getWords()));
+		ArrayList<String> combinedWords = new ArrayList<String>(Arrays.asList(this.words));
+		for (String s : type.getWords()) {
+			combinedWords.add(s);
+		}
 		this.words = combinedWords.toArray(new String[combinedWords.size()]);
 
 		this.srl.addAll(type.getSrl());
