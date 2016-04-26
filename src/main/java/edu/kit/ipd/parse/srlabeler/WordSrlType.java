@@ -33,4 +33,15 @@ public class WordSrlType {
 		this.srl.addAll(type.getSrl());
 
 	}
+
+	@Override
+	public String toString() {
+		String output = "";
+		for (int i = 0; i < this.getWords().length; i++) {
+			output += "(" + words[i] + ": " + srl.get(i) + ") ";
+		}
+		return output;
+	}
+	
+	
 }
