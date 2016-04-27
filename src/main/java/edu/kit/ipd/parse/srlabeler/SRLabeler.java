@@ -78,6 +78,9 @@ public class SRLabeler implements IPipelineStage {
 		} catch (InterruptedException e) {
 			logger.error("The SENNA process interrupted unexpectedly", e);
 			throw new PipelineStageException(e);
+		} catch (IllegalArgumentException e) {
+			logger.error("The number of input and result Objects does not match", e);
+			throw new PipelineStageException(e);
 		}
 
 		//		try {
@@ -109,7 +112,7 @@ public class SRLabeler implements IPipelineStage {
 				result.add(associateResultWithToken(taggedHypos.get(i), wordSRLPairsList.get(i)));
 			}
 		} else {
-			throw new IllegalArgumentException("There are more or less Hypotheses then results");
+			throw new IllegalArgumentException("There is a different number of input hypothesis then result hypothesis of the SRL Tagging");
 		}
 		return result;
 
@@ -124,7 +127,7 @@ public class SRLabeler implements IPipelineStage {
 				}
 			}
 		} else {
-			throw new IllegalArgumentException("There is a different number of tokens then result objects");
+			throw new IllegalArgumentException("There is a different number of input tokens then the result objects of the SRL Tagging");
 		}
 		return srlTokenList;
 	}
