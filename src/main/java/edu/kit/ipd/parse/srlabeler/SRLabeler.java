@@ -62,7 +62,7 @@ public class SRLabeler implements IPipelineStage {
 		try {
 			List<List<Token>> taggedHypos = prePipeData.getTaggedHypotheses();
 			List<List<WordSRLPair>> result = parseBatch(taggedHypos);
-			List<List<Token>> tokensWithSrls = associateResultWithToken(taggedHypos, result);
+			List<List<Token>> tokensWithSrls = associateResultWithTokenBatch(taggedHypos, result);
 			prePipeData.setTaggedHypotheses(tokensWithSrls);
 			
 
@@ -102,29 +102,31 @@ public class SRLabeler implements IPipelineStage {
 
 	}
 
-	private List<List<Token>> associateResultWithToken(List<List<Token>> taggedHypos, List<List<WordSRLPair>> wordSRLPairsList) {
+	private List<List<Token>> associateResultWithTokenBatch(List<List<Token>> taggedHypos, List<List<WordSRLPair>> wordSRLPairsList) throws IllegalArgumentException{
 		List<List<Token>> result = new ArrayList<List<Token>>();
 		if (taggedHypos.size() == wordSRLPairsList.size()) {
 			for (int i = 0; i < taggedHypos.size(); i++) {
-				List<Token> tokens = taggedHypos.get(i);
-				List<WordSRLPair> wsps = wordSRLPairsList.get(i);
-				List<Token> srlTokenList = new ArrayList<Token>();
-				if (tokens.size() == wsps.size()) {
-					for (int j = 0; j < tokens.size(); j++) {
-						if (tokens.get(j).getWord().equals(wsps.get(j).getWord())) {
-							srlTokenList.add(new SRLToken(tokens.get(j), wsps.get(j).getSrls()));
-						}
-					}
-				} else {
-					throw new IllegalArgumentException("There is a different number of tokens then result objects");
-				}
-				result.add(srlTokenList);
+				result.add(associateResultWithToken(taggedHypos.get(i), wordSRLPairsList.get(i)));
 			}
 		} else {
 			throw new IllegalArgumentException("There are more or less Hypotheses then results");
 		}
 		return result;
 
+	}
+	
+	private List<Token> associateResultWithToken(List<Token> tokens, List<WordSRLPair> wsps) throws IllegalArgumentException{
+		List<Token> srlTokenList = new ArrayList<Token>();
+		if (tokens.size() == wsps.size()) {
+			for (int j = 0; j < tokens.size(); j++) {
+				if (tokens.get(j).getWord().equals(wsps.get(j).getWord())) {
+					srlTokenList.add(new SRLToken(tokens.get(j), wsps.get(j).getSrls()));
+				}
+			}
+		} else {
+			throw new IllegalArgumentException("There is a different number of tokens then result objects");
+		}
+		return srlTokenList;
 	}
 
 	/**
