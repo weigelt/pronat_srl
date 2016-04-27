@@ -53,7 +53,7 @@ public class Senna {
 	 *             throws exception if something in the URL creation of the
 	 *             SENNA resource path goes wrong
 	 */
-	public WordSrlType parse(File tempInputFile) throws IOException, URISyntaxException, InterruptedException {
+	public List<WordSRLPair> parse(File tempInputFile) throws IOException, URISyntaxException, InterruptedException {
 		File outputFile = excecuteSenna(tempInputFile);
 		return readFile(outputFile);
 	}
@@ -81,8 +81,8 @@ public class Senna {
 			command.add(resourcePath.toString() + "/senna-osx");
 		} else if (os.contains("nux")) {
 			command.add(resourcePath.toString() + "/senna-linux64");
-		//} else if (os.contains("win") && System.getenv("ProgramFiles(x86)") != null) {
-		//	command.add(resourcePath.toString() + "/senna.exe");
+		} else if (os.contains("win") && System.getenv("ProgramFiles(x86)") != null) {
+			command.add(resourcePath.toString() + "/senna-win32.exe");
 		} else {
 			command.add(resourcePath.toString() + "/senna-win32.exe");
 		}
@@ -192,31 +192,32 @@ public class Senna {
 	 * 
 	 * @param outputFile
 	 *            of the file
-	 * @return the parse result of SENNA
+	 * @return the parse result of SENNA as {@link WordSrlType}
 	 * @throws IOException
 	 *             throws exception if something during creation or usage of the
 	 *             buffered reader for the output file goes wrong
 	 */
-	private WordSrlType readFile(File outputFile) throws IOException {
-		List<String> words = new ArrayList<String>();
-		List<List<String>> srl = new ArrayList<List<String>>();
+	private List<WordSRLPair> readFile(File outputFile) throws IOException {
+		List<WordSRLPair> result = new ArrayList<WordSRLPair>();
 		BufferedReader br = new BufferedReader(new FileReader(outputFile));
 		String line;
 		while ((line = br.readLine()) != null) {
 			if (!line.trim().equals("")) {
 				String[] tokens = line.trim().split("\\s+");
-				words.add(tokens[0]);
+				
+				
 				List<String> srls = new ArrayList<String>();
 				for (int i = 1; i < tokens.length; i++) {
 					srls.add(tokens[i]);
 				}
-				srl.add(srls);
+				WordSRLPair wsp = new WordSRLPair(tokens[0], srls);
+				result.add(wsp);
 			}
 		}
 		if (br != null) {
 			br.close();
 		}
-		return new WordSrlType(words.toArray(new String[words.size()]), srl);
+		return result;
 	}
 
 }

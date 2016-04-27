@@ -7,6 +7,7 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
+import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.shallownlp.ShallowNLP;
@@ -43,6 +44,13 @@ public class SRLabelerTest {
 		try {
 			srLabeler.exec(ppd);
 		} catch (PipelineStageException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		try {
+			System.out.println(ppd.getTaggedHypotheses());
+		} catch (MissingDataException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
