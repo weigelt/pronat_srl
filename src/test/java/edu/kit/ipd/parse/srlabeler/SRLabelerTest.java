@@ -29,9 +29,10 @@ public class SRLabelerTest {
 	@Test
 	public void singleInputTest() {
 		ppd = new PrePipelineData();
+		//input = "okay Armar go to the table";
 		input = "okay Armar go to the table take the green cup go to the dishwasher open it put the green cup into the dishwasher";
-		List<String> list = Arrays.asList(input.split("\\s+"));
-		ppd.addHypothesis(list);
+		ppd.setTranscription(input);
+		
 
 		try {
 			snlp.exec(ppd);
@@ -43,13 +44,6 @@ public class SRLabelerTest {
 		try {
 			srLabeler.exec(ppd);
 		} catch (PipelineStageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		try {
-			System.out.println(ppd.getTaggedHypotheses());
-		} catch (MissingDataException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

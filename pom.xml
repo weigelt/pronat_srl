@@ -48,5 +48,11 @@
 			<groupId>edu.kit.ipd.parse</groupId>
 			<artifactId>ShallowNLP</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>org.cleartk</groupId>
+			<artifactId>cleartk-corpus</artifactId>
+			<version>2.0.0</version>
+		</dependency>
 	</dependencies>
 </project>

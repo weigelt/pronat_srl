@@ -53,9 +53,9 @@ public class Senna {
 	 *             throws exception if something in the URL creation of the
 	 *             SENNA resource path goes wrong
 	 */
-	public List<WordSRLPair> parse(File tempInputFile) throws IOException, URISyntaxException, InterruptedException {
+	public List<SRLToken> parse(File tempInputFile, int instructionNumber) throws IOException, URISyntaxException, InterruptedException {
 		File outputFile = excecuteSenna(tempInputFile);
-		return readFile(outputFile);
+		return readFile(outputFile, instructionNumber);
 	}
 	
 	
@@ -197,8 +197,8 @@ public class Senna {
 	 *             throws exception if something during creation or usage of the
 	 *             buffered reader for the output file goes wrong
 	 */
-	private List<WordSRLPair> readFile(File outputFile) throws IOException {
-		List<WordSRLPair> result = new ArrayList<WordSRLPair>();
+	private List<SRLToken> readFile(File outputFile, int instructionNumber) throws IOException {
+		List<SRLToken> result = new ArrayList<SRLToken>();
 		BufferedReader br = new BufferedReader(new FileReader(outputFile));
 		String line;
 		while ((line = br.readLine()) != null) {
@@ -210,7 +210,7 @@ public class Senna {
 				for (int i = 1; i < tokens.length; i++) {
 					srls.add(tokens[i]);
 				}
-				WordSRLPair wsp = new WordSRLPair(tokens[0], srls);
+				SRLToken wsp = new SRLToken(tokens[0], instructionNumber, srls);
 				result.add(wsp);
 			}
 		}

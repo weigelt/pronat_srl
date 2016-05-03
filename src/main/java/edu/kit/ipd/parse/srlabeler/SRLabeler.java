@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.kohsuke.MetaInfServices;
 import org.slf4j.Logger;
@@ -16,8 +17,11 @@ import edu.kit.ipd.parse.luna.data.AbstractPipelineData;
 import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PipelineDataCastException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
-import edu.kit.ipd.parse.luna.data.token.SRLToken;
 import edu.kit.ipd.parse.luna.data.token.Token;
+import edu.kit.ipd.parse.luna.graph.IArc;
+import edu.kit.ipd.parse.luna.graph.IGraph;
+import edu.kit.ipd.parse.luna.graph.INode;
+import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.luna.tools.ConfigManager;
@@ -60,14 +64,22 @@ public class SRLabeler implements IPipelineStage {
 		}
 
 		try {
-			List<List<Token>> taggedHypos = prePipeData.getTaggedHypotheses();
-			List<List<WordSRLPair>> result = parseBatch(taggedHypos);
-			List<List<Token>> tokensWithSrls = associateResultWithTokenBatch(taggedHypos, result);
-			prePipeData.setTaggedHypotheses(tokensWithSrls);
-			
+			IGraph graph = prePipeData.getGraph();
+			List<SRLToken> input;
+			if (graph instanceof ParseGraph) {
+				ParseGraph pGraph = (ParseGraph) graph;
+				input = generateInputList(pGraph);
+
+				System.out.println(input);
+				List<SRLToken> result = parse(input);
+				System.out.println(result);
+			} else {
+				logger.error("ParseGraph object expected but not provided.");
+				throw new IllegalArgumentException("ParseGraph expected but not provided.");
+			}
 
 		} catch (MissingDataException e) {
-			logger.error("No tagged hypotheses to process, aborting ...", e);
+			logger.error("No graph to process, aborting ...", e);
 			throw new PipelineStageException(e);
 		} catch (IOException e) {
 			logger.error("An IOException occured during run of SENNA", e);
@@ -78,58 +90,44 @@ public class SRLabeler implements IPipelineStage {
 		} catch (InterruptedException e) {
 			logger.error("The SENNA process interrupted unexpectedly", e);
 			throw new PipelineStageException(e);
-		} catch (IllegalArgumentException e) {
-			logger.error("The number of input and result Objects does not match", e);
-			throw new PipelineStageException(e);
 		}
-
-		//		try {
-		//			Token[] tokens = prePipeData.getTokens();
-		//			WordSrlType result = parse(Arrays.asList(tokens));
-		//			System.out.println(result.toString());
-		//			//TODO: put result into PrePipelineData
-		//
-		//		} catch (MissingDataException e) {
-		//			logger.error("No tokens to process, aborting ...", e);
-		//			throw new PipelineStageException(e);
-		//		} catch (IOException e) {
-		//			logger.error("An IOException occured during run of SENNA", e);
-		//			throw new PipelineStageException(e);
-		//		} catch (URISyntaxException e) {
-		//			logger.error("An URISyntaxException occured during initialization of SENNA", e);
-		//			throw new PipelineStageException(e);
-		//		} catch (InterruptedException e) {
-		//			logger.error("The SENNA process interrupted unexpectedly", e);
-		//			throw new PipelineStageException(e);
-		//		}
 
 	}
 
-	private List<List<Token>> associateResultWithTokenBatch(List<List<Token>> taggedHypos, List<List<WordSRLPair>> wordSRLPairsList) throws IllegalArgumentException{
-		List<List<Token>> result = new ArrayList<List<Token>>();
-		if (taggedHypos.size() == wordSRLPairsList.size()) {
-			for (int i = 0; i < taggedHypos.size(); i++) {
-				result.add(associateResultWithToken(taggedHypos.get(i), wordSRLPairsList.get(i)));
-			}
-		} else {
-			throw new IllegalArgumentException("There is a different number of input hypothesis then result hypothesis of the SRL Tagging");
-		}
-		return result;
+	private List<SRLToken> generateInputList(ParseGraph pGraph)
+			throws PipelineStageException, IOException, URISyntaxException, InterruptedException {
+		List<SRLToken> input = new ArrayList<>();
+		INode first = pGraph.getFirstUtteranceNode();
+		if (first != null) {
+			INode act = first;
+			boolean hasNext = false;
+			do {
+				if (act.getAttributeNames().contains("value") && act.getAttributeNames().contains("instructionNumber")) {
+					SRLToken token = new SRLToken(act.getAttributeValue("value").toString(),
+							Integer.parseInt(act.getAttributeValue("instructionNumber").toString()));
+					input.add(token);
+					hasNext = false;
+					for (IArc arc : act.getOutgoingArcsOfType(pGraph.getArcType("relation"))) {
+						if (arc.getAttributeNames().contains("value") && arc.getAttributeValue("value").equals("NEXT")) {
+							hasNext = true;
+							act = arc.getTargetNode();
+						} else {
+							logger.error("Relation arc does not contain NEXT pointer.");
+							throw new PipelineStageException("Relation arc does not contain NEXT pointer.");
+						}
+					}
 
-	}
-	
-	private List<Token> associateResultWithToken(List<Token> tokens, List<WordSRLPair> wsps) throws IllegalArgumentException{
-		List<Token> srlTokenList = new ArrayList<Token>();
-		if (tokens.size() == wsps.size()) {
-			for (int j = 0; j < tokens.size(); j++) {
-				if (tokens.get(j).getWord().equals(wsps.get(j).getWord())) {
-					srlTokenList.add(new SRLToken(tokens.get(j), wsps.get(j).getSrls()));
+				} else {
+					logger.error("Token node does not contain words or instructionNumber");
+					throw new PipelineStageException("Token node does not contain words or instructionNumber");
 				}
-			}
+			} while (hasNext);
+
 		} else {
-			throw new IllegalArgumentException("There is a different number of input tokens then the result objects of the SRL Tagging");
+			logger.error("Graph contains no first utterance node");
+			throw new PipelineStageException("Graph contains no first utterance node");
 		}
-		return srlTokenList;
+		return input;
 	}
 
 	/**
@@ -143,34 +141,36 @@ public class SRLabeler implements IPipelineStage {
 	 * @throws URISyntaxException
 	 * @throws InterruptedException
 	 */
-	public List<WordSRLPair> parse(List<Token> tokens) throws IOException, URISyntaxException, InterruptedException {
-		List<WordSRLPair> result = new ArrayList<WordSRLPair>();
+	public List<SRLToken> parse(List<SRLToken> tokens) throws IOException, URISyntaxException, InterruptedException {
+		List<SRLToken> result = new ArrayList<SRLToken>();
 		Senna senna = new Senna();
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
 			List<String> inputList = generateInstructionInput(tokens);
 
+			int instructionNumber = 0;
 			for (String input : inputList) {
 				File inputTmpFile = writeToTempFile(input);
-				result.addAll(senna.parse(inputTmpFile));
+				result.addAll(senna.parse(inputTmpFile, instructionNumber));
+				instructionNumber++;
 			}
 		} else {
 			String input = "";
-			for (Token t : tokens) {
+			for (SRLToken t : tokens) {
 				input += t.getWord() + " ";
 			}
 			File inputTmpFile = writeToTempFile(input);
 			logger.info("parsing SRL without instructions");
-			result = senna.parse(inputTmpFile);
+			result = senna.parse(inputTmpFile, -1);
 		}
 		return result;
 	}
 
-	private List<String> generateInstructionInput(List<Token> tokens) {
+	private List<String> generateInstructionInput(List<SRLToken> tokens) {
 		List<String> inputList = new ArrayList<String>();
 		int instructionNumber = 0;
 		String instruction = "";
-		for (Token t : tokens) {
+		for (SRLToken t : tokens) {
 
 			if (t.getInstructionNumber() > instructionNumber) {
 				inputList.add(instruction);
@@ -181,14 +181,6 @@ public class SRLabeler implements IPipelineStage {
 		}
 		inputList.add(instruction);
 		return inputList;
-	}
-
-	private List<List<WordSRLPair>> parseBatch(List<List<Token>> hypotheses) throws IOException, URISyntaxException, InterruptedException {
-		List<List<WordSRLPair>> result = new ArrayList<List<WordSRLPair>>();
-		for (List<Token> lt : hypotheses) {
-			result.add(parse(lt));
-		}
-		return result;
 	}
 
 	/**
