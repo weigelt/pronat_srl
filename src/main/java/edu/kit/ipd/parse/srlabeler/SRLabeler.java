@@ -19,8 +19,10 @@ import edu.kit.ipd.parse.luna.data.PipelineDataCastException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
 import edu.kit.ipd.parse.luna.data.token.Token;
 import edu.kit.ipd.parse.luna.graph.IArc;
+import edu.kit.ipd.parse.luna.graph.IArcType;
 import edu.kit.ipd.parse.luna.graph.IGraph;
 import edu.kit.ipd.parse.luna.graph.INode;
+import edu.kit.ipd.parse.luna.graph.ParseArc;
 import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
@@ -45,6 +47,10 @@ public class SRLabeler implements IPipelineStage {
 	private PrePipelineData prePipeData;
 
 	private boolean parsePerInstruction;
+
+	private static final String TOKEN_NAME = "token";
+
+	private static final String NEXT_RELATION_NAME = "relation";
 
 	@Override
 	public void init() {
@@ -71,7 +77,8 @@ public class SRLabeler implements IPipelineStage {
 				input = generateInputList(pGraph);
 
 				System.out.println(input);
-				List<SRLToken> result = parse(input);
+				List<List<SRLToken>> result = parse(input);
+				putResultIntoGraph(result, pGraph);
 				System.out.println(result);
 			} else {
 				logger.error("ParseGraph object expected but not provided.");
@@ -94,6 +101,94 @@ public class SRLabeler implements IPipelineStage {
 
 	}
 
+	private void putResultIntoGraph(List<List<SRLToken>> result, ParseGraph pGraph) {
+		INode current = pGraph.getFirstUtteranceNode();
+		for (List<SRLToken> instruction : result) {
+			List<SRLToken> verbs = getVerbsOfInstruction(instruction);
+			int numberOfVerbs = verbs.size();
+			INode[] verbNodes = new INode[numberOfVerbs];
+			INode beginning = current;
+			for (int i = 0; i < numberOfVerbs; i++) {
+				verbNodes[i] = firstMatchingNode(beginning, verbs.get(i), pGraph);
+				beginning = verbNodes[i];
+			}
+			for (SRLToken token : instruction) {
+				INode nodeForToken = firstMatchingNode(current, token, pGraph);
+				for (int i = 0; i < numberOfVerbs; i++) {
+					if (isSingleOrBeginning(token.getSrls().get(i + 1))) {
+					//	IArc arc = new ParseArc(verbNodes[i], nodeForToken, )
+					} else {
+						
+					}
+				}
+			}
+		}
+
+	}
+	
+	private boolean isSingleOrBeginning(String s) {
+		return (s.contains("S-") || s.contains("B-"));
+	}
+
+	private INode firstMatchingNode(INode beginning, SRLToken token, ParseGraph pGraph) {
+		INode current = beginning;
+		IArcType arcType = pGraph.getArcType(NEXT_RELATION_NAME);
+		Set<? extends IArc> outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
+		if (current.getAttributeValue("value").equals(token.getWord())) {
+			return current;
+		} else {
+			while (!outgoingNextArcs.isEmpty()) {
+				current = outgoingNextArcs.toArray(new IArc[outgoingNextArcs.size()])[0].getTargetNode();
+				if (current.getAttributeValue("value").equals(token.getWord())) {
+					return current;
+				}
+				outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
+			}
+		}
+		return null;
+
+	}
+
+	//	private int getNumberOfVerbs(List<SRLToken> verbs) {
+	//		int result = 0;
+	//		for (SRLToken token : verbs) {
+	//			if (token.getSrls().get(1).contains("S-") || token.getSrls().get(1).contains("B-")) {
+	//				result++;
+	//			}
+	//		}
+	//		return 0;
+	//	}
+
+	private List<SRLToken> getVerbsOfInstruction(List<SRLToken> instruction) {
+		List<SRLToken> verbs = new ArrayList<SRLToken>();
+		for (SRLToken token : instruction) {
+			if (!token.getSrls().get(0).equals("-") && (token.getSrls().get(1).contains("S-") || token.getSrls().get(1).contains("B-"))) {
+				verbs.add(token);
+			}
+		}
+		return verbs;
+	}
+
+	private List<List<SRLToken>> getResultPerInstruction(List<SRLToken> result) {
+		List<List<SRLToken>> resultPerInstruction = new ArrayList<List<SRLToken>>();
+		List<SRLToken> instruction = new ArrayList<SRLToken>();
+		if (!result.isEmpty()) {
+			int number = result.get(0).getInstructionNumber();
+			for (SRLToken token : result) {
+				if (token.getInstructionNumber() == number) {
+					instruction.add(token);
+				} else {
+					resultPerInstruction.add(instruction);
+					instruction = new ArrayList<SRLToken>();
+					instruction.add(token);
+					number = token.getInstructionNumber();
+				}
+			}
+			resultPerInstruction.add(instruction);
+		}
+		return resultPerInstruction;
+	}
+
 	private List<SRLToken> generateInputList(ParseGraph pGraph)
 			throws PipelineStageException, IOException, URISyntaxException, InterruptedException {
 		List<SRLToken> input = new ArrayList<>();
@@ -107,7 +202,7 @@ public class SRLabeler implements IPipelineStage {
 							Integer.parseInt(act.getAttributeValue("instructionNumber").toString()));
 					input.add(token);
 					hasNext = false;
-					for (IArc arc : act.getOutgoingArcsOfType(pGraph.getArcType("relation"))) {
+					for (IArc arc : act.getOutgoingArcsOfType(pGraph.getArcType(NEXT_RELATION_NAME))) {
 						if (arc.getAttributeNames().contains("value") && arc.getAttributeValue("value").equals("NEXT")) {
 							hasNext = true;
 							act = arc.getTargetNode();
@@ -141,8 +236,8 @@ public class SRLabeler implements IPipelineStage {
 	 * @throws URISyntaxException
 	 * @throws InterruptedException
 	 */
-	public List<SRLToken> parse(List<SRLToken> tokens) throws IOException, URISyntaxException, InterruptedException {
-		List<SRLToken> result = new ArrayList<SRLToken>();
+	public List<List<SRLToken>> parse(List<SRLToken> tokens) throws IOException, URISyntaxException, InterruptedException {
+		List<List<SRLToken>> result = new ArrayList<List<SRLToken>>();
 		Senna senna = new Senna();
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
@@ -151,7 +246,7 @@ public class SRLabeler implements IPipelineStage {
 			int instructionNumber = 0;
 			for (String input : inputList) {
 				File inputTmpFile = writeToTempFile(input);
-				result.addAll(senna.parse(inputTmpFile, instructionNumber));
+				result.add(senna.parse(inputTmpFile, instructionNumber));
 				instructionNumber++;
 			}
 		} else {
@@ -161,7 +256,7 @@ public class SRLabeler implements IPipelineStage {
 			}
 			File inputTmpFile = writeToTempFile(input);
 			logger.info("parsing SRL without instructions");
-			result = senna.parse(inputTmpFile, -1);
+			result.add(senna.parse(inputTmpFile, -1));
 		}
 		return result;
 	}
