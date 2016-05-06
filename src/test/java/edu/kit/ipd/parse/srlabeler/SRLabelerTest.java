@@ -1,6 +1,7 @@
 package edu.kit.ipd.parse.srlabeler;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import org.junit.Before;
@@ -8,6 +9,10 @@ import org.junit.Test;
 
 import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
+import edu.kit.ipd.parse.luna.graph.IArc;
+import edu.kit.ipd.parse.luna.graph.IGraph;
+import edu.kit.ipd.parse.luna.graph.INode;
+import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.shallownlp.ShallowNLP;
 
@@ -43,10 +48,43 @@ public class SRLabelerTest {
 
 		try {
 			srLabeler.exec(ppd);
+			printSRLGraph(ppd.getGraph());
 		} catch (PipelineStageException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (MissingDataException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
+	}
+	
+	private void printSRLGraph(IGraph graph) {
+		String prettyPrint = "Graph: " + " {\n";
+		ParseGraph pGraph = (ParseGraph) graph;
+		INode current = pGraph.getFirstUtteranceNode();
+		Iterator<? extends IArc> e = graph.getArcs().iterator();
+		while (e.hasNext()) {
+			IArc arc = e.next();
+			INode src = arc.getSourceNode();
+			INode trg = arc.getTargetNode();
+			prettyPrint = prettyPrint.concat(src.getAllAttributeValues().size() == 0 ? src.getType().getName() : (String) src
+					.getAttributeValue(src.getAttributeNames().get(0)));
+			prettyPrint = prettyPrint.concat(" ---"
+					+ (arc.getAllAttributeValues().size() == 0 ? arc.getType() : ( arc.getAllAttributeValues().size() == 1 ? arc.getAttributeValue(arc.getAttributeNames().get(0)) : arc.getAttributeValue(arc.getAttributeNames().get(1)) + "-" + arc.getAttributeValue(arc.getAttributeNames().get(0)))));
+			prettyPrint = prettyPrint.concat(" --->"
+					+ (trg.getAllAttributeValues().size() == 0 ? trg.getType().getName() : (String) trg.getAttributeValue(trg
+							.getAttributeNames().get(0))) + "\n");
+		}
+
+		Iterator<INode> u = graph.getNodes().iterator();
+		while (u.hasNext()) {
+			INode node = u.next();
+			if (node.getIncomingArcs().isEmpty() && node.getOutgoingArcs().isEmpty())
+				prettyPrint = prettyPrint.concat(node.getAllAttributeValues().size() == 0 ? node.getType().getName() : node
+						.getAttributeValue(node.getAttributeNames().get(0)) + "\n");
+		}
+		prettyPrint = prettyPrint.concat("}\n");
+		System.out.println(prettyPrint);
 	}
 
 }

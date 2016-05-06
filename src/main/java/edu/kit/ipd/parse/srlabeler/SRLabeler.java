@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Properties;
 import java.util.Set;
 
@@ -22,6 +23,7 @@ import edu.kit.ipd.parse.luna.graph.IArc;
 import edu.kit.ipd.parse.luna.graph.IArcType;
 import edu.kit.ipd.parse.luna.graph.IGraph;
 import edu.kit.ipd.parse.luna.graph.INode;
+import edu.kit.ipd.parse.luna.graph.INodeType;
 import edu.kit.ipd.parse.luna.graph.ParseArc;
 import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
@@ -38,6 +40,10 @@ import edu.kit.ipd.parse.luna.tools.ConfigManager;
 @MetaInfServices(IPipelineStage.class)
 public class SRLabeler implements IPipelineStage {
 
+	private static final String CORRESPONDING_VERB = "correspondingVerb";
+
+	private static final String IOBES = "IOBES";
+
 	private static final Logger logger = LoggerFactory.getLogger(SRLabeler.class);
 
 	private static final String ID = "srl";
@@ -48,9 +54,19 @@ public class SRLabeler implements IPipelineStage {
 
 	private boolean parsePerInstruction;
 
-	private static final String TOKEN_NAME = "token";
+	private static final String TOKEN_NODETYPE_NAME = "token";
 
-	private static final String NEXT_RELATION_NAME = "relation";
+	private static final String NEXT_ARCTYPE_NAME = "relation";
+
+	private static final String SRL_ARCTYPE_NAME = "srl";
+
+	private static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
+
+	private static final String ROLE_VALUE_NAME = "role";
+
+	private static final String NEXT_VALUE_NAME = "value";
+	
+	private static final String TOKEN_WORD_VALUE_NAME = "value";
 
 	@Override
 	public void init() {
@@ -80,6 +96,11 @@ public class SRLabeler implements IPipelineStage {
 				List<List<SRLToken>> result = parse(input);
 				putResultIntoGraph(result, pGraph);
 				System.out.println(result);
+				INode current = pGraph.getFirstUtteranceNode();
+				while (current != null) {
+					System.err.println(current);
+					current = getNextNode(current, pGraph);
+				}
 			} else {
 				logger.error("ParseGraph object expected but not provided.");
 				throw new IllegalArgumentException("ParseGraph expected but not provided.");
@@ -101,130 +122,6 @@ public class SRLabeler implements IPipelineStage {
 
 	}
 
-	private void putResultIntoGraph(List<List<SRLToken>> result, ParseGraph pGraph) {
-		INode current = pGraph.getFirstUtteranceNode();
-		for (List<SRLToken> instruction : result) {
-			List<SRLToken> verbs = getVerbsOfInstruction(instruction);
-			int numberOfVerbs = verbs.size();
-			INode[] verbNodes = new INode[numberOfVerbs];
-			INode beginning = current;
-			for (int i = 0; i < numberOfVerbs; i++) {
-				verbNodes[i] = firstMatchingNode(beginning, verbs.get(i), pGraph);
-				beginning = verbNodes[i];
-			}
-			for (SRLToken token : instruction) {
-				INode nodeForToken = firstMatchingNode(current, token, pGraph);
-				for (int i = 0; i < numberOfVerbs; i++) {
-					if (isSingleOrBeginning(token.getSrls().get(i + 1))) {
-					//	IArc arc = new ParseArc(verbNodes[i], nodeForToken, )
-					} else {
-						
-					}
-				}
-			}
-		}
-
-	}
-	
-	private boolean isSingleOrBeginning(String s) {
-		return (s.contains("S-") || s.contains("B-"));
-	}
-
-	private INode firstMatchingNode(INode beginning, SRLToken token, ParseGraph pGraph) {
-		INode current = beginning;
-		IArcType arcType = pGraph.getArcType(NEXT_RELATION_NAME);
-		Set<? extends IArc> outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
-		if (current.getAttributeValue("value").equals(token.getWord())) {
-			return current;
-		} else {
-			while (!outgoingNextArcs.isEmpty()) {
-				current = outgoingNextArcs.toArray(new IArc[outgoingNextArcs.size()])[0].getTargetNode();
-				if (current.getAttributeValue("value").equals(token.getWord())) {
-					return current;
-				}
-				outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
-			}
-		}
-		return null;
-
-	}
-
-	//	private int getNumberOfVerbs(List<SRLToken> verbs) {
-	//		int result = 0;
-	//		for (SRLToken token : verbs) {
-	//			if (token.getSrls().get(1).contains("S-") || token.getSrls().get(1).contains("B-")) {
-	//				result++;
-	//			}
-	//		}
-	//		return 0;
-	//	}
-
-	private List<SRLToken> getVerbsOfInstruction(List<SRLToken> instruction) {
-		List<SRLToken> verbs = new ArrayList<SRLToken>();
-		for (SRLToken token : instruction) {
-			if (!token.getSrls().get(0).equals("-") && (token.getSrls().get(1).contains("S-") || token.getSrls().get(1).contains("B-"))) {
-				verbs.add(token);
-			}
-		}
-		return verbs;
-	}
-
-	private List<List<SRLToken>> getResultPerInstruction(List<SRLToken> result) {
-		List<List<SRLToken>> resultPerInstruction = new ArrayList<List<SRLToken>>();
-		List<SRLToken> instruction = new ArrayList<SRLToken>();
-		if (!result.isEmpty()) {
-			int number = result.get(0).getInstructionNumber();
-			for (SRLToken token : result) {
-				if (token.getInstructionNumber() == number) {
-					instruction.add(token);
-				} else {
-					resultPerInstruction.add(instruction);
-					instruction = new ArrayList<SRLToken>();
-					instruction.add(token);
-					number = token.getInstructionNumber();
-				}
-			}
-			resultPerInstruction.add(instruction);
-		}
-		return resultPerInstruction;
-	}
-
-	private List<SRLToken> generateInputList(ParseGraph pGraph)
-			throws PipelineStageException, IOException, URISyntaxException, InterruptedException {
-		List<SRLToken> input = new ArrayList<>();
-		INode first = pGraph.getFirstUtteranceNode();
-		if (first != null) {
-			INode act = first;
-			boolean hasNext = false;
-			do {
-				if (act.getAttributeNames().contains("value") && act.getAttributeNames().contains("instructionNumber")) {
-					SRLToken token = new SRLToken(act.getAttributeValue("value").toString(),
-							Integer.parseInt(act.getAttributeValue("instructionNumber").toString()));
-					input.add(token);
-					hasNext = false;
-					for (IArc arc : act.getOutgoingArcsOfType(pGraph.getArcType(NEXT_RELATION_NAME))) {
-						if (arc.getAttributeNames().contains("value") && arc.getAttributeValue("value").equals("NEXT")) {
-							hasNext = true;
-							act = arc.getTargetNode();
-						} else {
-							logger.error("Relation arc does not contain NEXT pointer.");
-							throw new PipelineStageException("Relation arc does not contain NEXT pointer.");
-						}
-					}
-
-				} else {
-					logger.error("Token node does not contain words or instructionNumber");
-					throw new PipelineStageException("Token node does not contain words or instructionNumber");
-				}
-			} while (hasNext);
-
-		} else {
-			logger.error("Graph contains no first utterance node");
-			throw new PipelineStageException("Graph contains no first utterance node");
-		}
-		return input;
-	}
-
 	/**
 	 * This method parses the specified {@link Token}s with SENNA and returns
 	 * the contained words associated with their srl Tags
@@ -242,7 +139,7 @@ public class SRLabeler implements IPipelineStage {
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
 			List<String> inputList = generateInstructionInput(tokens);
-
+	
 			int instructionNumber = 0;
 			for (String input : inputList) {
 				File inputTmpFile = writeToTempFile(input);
@@ -259,6 +156,191 @@ public class SRLabeler implements IPipelineStage {
 			result.add(senna.parse(inputTmpFile, -1));
 		}
 		return result;
+	}
+
+	private void putResultIntoGraph(List<List<SRLToken>> result, ParseGraph pGraph) {
+		
+		//Prepare arc and token type
+		IArcType arcType = pGraph.getArcType(SRL_ARCTYPE_NAME);
+		arcType.addAttributeToType("String", ROLE_VALUE_NAME);
+		arcType.addAttributeToType("String", IOBES);
+		arcType.addAttributeToType("String", CORRESPONDING_VERB);
+		
+		INode current = pGraph.getFirstUtteranceNode();
+		for (List<SRLToken> instruction : result) {
+			
+			// get verb representing nodes
+			List<SRLToken> verbTokens = getVerbTokenOfInstruction(instruction);
+			INode[] verbNodes = getVerbNodesOfInstruction(instruction, pGraph, current, verbTokens);
+			
+			ListIterator<SRLToken> iterator = instruction.listIterator();
+			while (iterator.hasNext()) {
+				SRLToken token = iterator.next();
+				INode nodeForToken = firstMatchingNode(current, token, pGraph);
+				
+				for (int i = 0; i < verbNodes.length; i++) {
+					if (token.getSrls().get(i + 1).contains("S-") && token.getSrls().get(0).contains("-")) {
+						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "S", verbTokens, token, i);
+
+					} else if (token.getSrls().get(i + 1).contains("B-")) {
+						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "B", verbTokens, token, i);
+
+						if (iterator.hasNext()) {
+							SRLToken next = iterator.next();
+							INode nextNode = firstMatchingNode(nodeForToken, next, pGraph);
+							if (next.getSrls().get(i + 1).contains("I-")) {
+								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, next, i);
+
+							} else if (next.getSrls().get(i + 1).startsWith("O")) {
+								while (iterator.hasNext()) {
+									SRLToken further = iterator.next();
+									INode furtherNode = firstMatchingNode(nextNode, further, pGraph);
+									if (further.getSrls().get(i + 1).contains("I-")) {
+										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, further, i);
+
+										break;
+									} else if (further.getSrls().get(i + 1).contains("E-")) {
+										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, further, i);
+
+										break;
+									}
+									
+								}
+							} else if (next.getSrls().get(i + 1).contains("E-")) {
+								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, next, i);
+
+							}
+						
+							iterator.previous();
+						}
+					} else if (token.getSrls().get(i + 1).contains("I-")) {
+						if (iterator.hasNext()) {
+							SRLToken next = iterator.next();
+							INode nextNode = firstMatchingNode(nodeForToken, next, pGraph);
+							if (next.getSrls().get(i + 1).contains("I-")) {
+								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, token, i);
+
+							} else if (next.getSrls().get(i + 1).startsWith("O")) {
+								while (iterator.hasNext()) {
+									SRLToken further = iterator.next();
+									INode furtherNode = firstMatchingNode(nextNode, further, pGraph);
+									if (further.getSrls().get(i + 1).contains("I-")) {
+										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, token, i);
+
+										break;
+									} else if (further.getSrls().get(i + 1).contains("E-")) {
+										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, token, i);
+
+										break;
+									}
+									
+								}
+							} else if (next.getSrls().get(i + 1).contains("E-")) {
+								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, token, i);
+
+							}
+						
+							iterator.previous();
+						}
+					} 
+				}
+				INode next = getNextNode(nodeForToken, pGraph);
+				if (next != null) {
+					current = next;
+				} else {
+					current = nodeForToken;
+				}
+			}
+		}
+
+	}
+	
+	private void createSRLArc(INode from, INode to, IArcType type, ParseGraph pGraph, String iobes, List<SRLToken> verbTokens, SRLToken token, int verbNumber) {
+		ParseArc arc = pGraph.createArc(from, to, type);
+		arc.setAttributeValue(ROLE_VALUE_NAME, token.getSrls().get(verbNumber + 1).substring(2));
+		arc.setAttributeValue(IOBES, iobes);
+		arc.setAttributeValue(CORRESPONDING_VERB, verbTokens.get(verbNumber).getSrls().get(0));
+	}
+
+	private boolean isSingleOrBeginning(String srl) {
+		return (srl.contains("S-") || srl.contains("B-"));
+	}
+
+	private INode getNextNode(INode current, ParseGraph pGraph) {
+		IArcType arcType = pGraph.getArcType(NEXT_ARCTYPE_NAME);
+		Set<? extends IArc> outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
+		if (!outgoingNextArcs.isEmpty()) {
+			return outgoingNextArcs.toArray(new IArc[outgoingNextArcs.size()])[0].getTargetNode();
+		} else {
+			return null;
+		}
+	}
+
+	private INode firstMatchingNode(INode beginning, SRLToken token, ParseGraph pGraph) {
+		INode current = beginning;
+		IArcType arcType = pGraph.getArcType(NEXT_ARCTYPE_NAME);
+		Set<? extends IArc> outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
+		if (current.getAttributeValue(NEXT_VALUE_NAME).equals(token.getWord())) {
+			return current;
+		} else {
+			while (!outgoingNextArcs.isEmpty()) {
+				current = getNextNode(current, pGraph);
+				if (current.getAttributeValue(NEXT_VALUE_NAME).equals(token.getWord())) {
+					return current;
+				}
+				outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
+			}
+		}
+		return null;
+
+	}
+
+	private INode[] getVerbNodesOfInstruction(List<SRLToken> instruction, ParseGraph pGraph, INode current, List<SRLToken> verbTokens) {
+		int numberOfVerbs = verbTokens.size();
+		INode[] verbNodes = new INode[numberOfVerbs];
+		INode beginning = current;
+		for (int i = 0; i < numberOfVerbs; i++) {
+			verbNodes[i] = firstMatchingNode(beginning, verbTokens.get(i), pGraph);
+			beginning = verbNodes[i];
+		}
+		return verbNodes;
+	}
+
+	private List<SRLToken> getVerbTokenOfInstruction(List<SRLToken> instruction) {
+		List<SRLToken> verbs = new ArrayList<SRLToken>();
+		for (SRLToken token : instruction) {
+			if (!token.getSrls().get(0).equals("-") && isSingleOrBeginning(token.getSrls().get(1))) {
+				verbs.add(token);
+			}
+		}
+		return verbs;
+	}
+
+	private List<SRLToken> generateInputList(ParseGraph pGraph)
+			throws PipelineStageException, IOException, URISyntaxException, InterruptedException {
+		List<SRLToken> input = new ArrayList<>();
+		INode first = pGraph.getFirstUtteranceNode();
+		if (first != null) {
+			INode act = first;
+
+			do {
+				if (act.getAttributeNames().contains(TOKEN_WORD_VALUE_NAME) && act.getAttributeNames().contains(INSTRUCTION_NUMBER_VALUE_NAME)) {
+					SRLToken token = new SRLToken(act.getAttributeValue(TOKEN_WORD_VALUE_NAME).toString(),
+							Integer.parseInt(act.getAttributeValue(INSTRUCTION_NUMBER_VALUE_NAME).toString()));
+					input.add(token);
+					act = getNextNode(act, pGraph);
+
+				} else {
+					logger.error("Token node does not contain words or instructionNumber");
+					throw new PipelineStageException("Token node does not contain words or instructionNumber");
+				}
+			} while (act != null);
+
+		} else {
+			logger.error("Graph contains no first utterance node");
+			throw new PipelineStageException("Graph contains no first utterance node");
+		}
+		return input;
 	}
 
 	private List<String> generateInstructionInput(List<SRLToken> tokens) {
