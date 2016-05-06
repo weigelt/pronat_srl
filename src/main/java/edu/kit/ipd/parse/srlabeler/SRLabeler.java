@@ -23,7 +23,6 @@ import edu.kit.ipd.parse.luna.graph.IArc;
 import edu.kit.ipd.parse.luna.graph.IArcType;
 import edu.kit.ipd.parse.luna.graph.IGraph;
 import edu.kit.ipd.parse.luna.graph.INode;
-import edu.kit.ipd.parse.luna.graph.INodeType;
 import edu.kit.ipd.parse.luna.graph.ParseArc;
 import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
@@ -40,10 +39,6 @@ import edu.kit.ipd.parse.luna.tools.ConfigManager;
 @MetaInfServices(IPipelineStage.class)
 public class SRLabeler implements IPipelineStage {
 
-	private static final String CORRESPONDING_VERB = "correspondingVerb";
-
-	private static final String IOBES = "IOBES";
-
 	private static final Logger logger = LoggerFactory.getLogger(SRLabeler.class);
 
 	private static final String ID = "srl";
@@ -54,8 +49,6 @@ public class SRLabeler implements IPipelineStage {
 
 	private boolean parsePerInstruction;
 
-	private static final String TOKEN_NODETYPE_NAME = "token";
-
 	private static final String NEXT_ARCTYPE_NAME = "relation";
 
 	private static final String SRL_ARCTYPE_NAME = "srl";
@@ -65,8 +58,12 @@ public class SRLabeler implements IPipelineStage {
 	private static final String ROLE_VALUE_NAME = "role";
 
 	private static final String NEXT_VALUE_NAME = "value";
-	
+
 	private static final String TOKEN_WORD_VALUE_NAME = "value";
+
+	private static final String CORRESPONDING_VERB = "correspondingVerb";
+
+	private static final String IOBES = "IOBES";
 
 	@Override
 	public void init() {
@@ -92,15 +89,9 @@ public class SRLabeler implements IPipelineStage {
 				ParseGraph pGraph = (ParseGraph) graph;
 				input = generateInputList(pGraph);
 
-				System.out.println(input);
 				List<List<SRLToken>> result = parse(input);
 				putResultIntoGraph(result, pGraph);
-				System.out.println(result);
-				INode current = pGraph.getFirstUtteranceNode();
-				while (current != null) {
-					System.err.println(current);
-					current = getNextNode(current, pGraph);
-				}
+
 			} else {
 				logger.error("ParseGraph object expected but not provided.");
 				throw new IllegalArgumentException("ParseGraph expected but not provided.");
@@ -139,7 +130,7 @@ public class SRLabeler implements IPipelineStage {
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
 			List<String> inputList = generateInstructionInput(tokens);
-	
+
 			int instructionNumber = 0;
 			for (String input : inputList) {
 				File inputTmpFile = writeToTempFile(input);
@@ -159,90 +150,43 @@ public class SRLabeler implements IPipelineStage {
 	}
 
 	private void putResultIntoGraph(List<List<SRLToken>> result, ParseGraph pGraph) {
-		
+
 		//Prepare arc and token type
 		IArcType arcType = pGraph.getArcType(SRL_ARCTYPE_NAME);
 		arcType.addAttributeToType("String", ROLE_VALUE_NAME);
 		arcType.addAttributeToType("String", IOBES);
 		arcType.addAttributeToType("String", CORRESPONDING_VERB);
-		
+
 		INode current = pGraph.getFirstUtteranceNode();
 		for (List<SRLToken> instruction : result) {
-			
+
 			// get verb representing nodes
 			List<SRLToken> verbTokens = getVerbTokenOfInstruction(instruction);
 			INode[] verbNodes = getVerbNodesOfInstruction(instruction, pGraph, current, verbTokens);
-			
+
+			//iterate over token in instruction
 			ListIterator<SRLToken> iterator = instruction.listIterator();
 			while (iterator.hasNext()) {
 				SRLToken token = iterator.next();
 				INode nodeForToken = firstMatchingNode(current, token, pGraph);
-				
+
+				// treat each verb separately
 				for (int i = 0; i < verbNodes.length; i++) {
-					if (token.getSrls().get(i + 1).contains("S-") && token.getSrls().get(0).contains("-")) {
+
+					// case token is Single semantic role
+					if (token.getSrls().get(i + 1).startsWith("S-") && token.getSrls().get(0).equals("-")) {
 						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "S", verbTokens, token, i);
 
-					} else if (token.getSrls().get(i + 1).contains("B-")) {
+						// case token is beginning of semantic role sequence
+					} else if (token.getSrls().get(i + 1).startsWith("B-")) {
 						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "B", verbTokens, token, i);
 
-						if (iterator.hasNext()) {
-							SRLToken next = iterator.next();
-							INode nextNode = firstMatchingNode(nodeForToken, next, pGraph);
-							if (next.getSrls().get(i + 1).contains("I-")) {
-								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, next, i);
+						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i);
 
-							} else if (next.getSrls().get(i + 1).startsWith("O")) {
-								while (iterator.hasNext()) {
-									SRLToken further = iterator.next();
-									INode furtherNode = firstMatchingNode(nextNode, further, pGraph);
-									if (further.getSrls().get(i + 1).contains("I-")) {
-										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, further, i);
-
-										break;
-									} else if (further.getSrls().get(i + 1).contains("E-")) {
-										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, further, i);
-
-										break;
-									}
-									
-								}
-							} else if (next.getSrls().get(i + 1).contains("E-")) {
-								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, next, i);
-
-							}
-						
-							iterator.previous();
-						}
-					} else if (token.getSrls().get(i + 1).contains("I-")) {
-						if (iterator.hasNext()) {
-							SRLToken next = iterator.next();
-							INode nextNode = firstMatchingNode(nodeForToken, next, pGraph);
-							if (next.getSrls().get(i + 1).contains("I-")) {
-								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, token, i);
-
-							} else if (next.getSrls().get(i + 1).startsWith("O")) {
-								while (iterator.hasNext()) {
-									SRLToken further = iterator.next();
-									INode furtherNode = firstMatchingNode(nextNode, further, pGraph);
-									if (further.getSrls().get(i + 1).contains("I-")) {
-										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, token, i);
-
-										break;
-									} else if (further.getSrls().get(i + 1).contains("E-")) {
-										createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, token, i);
-
-										break;
-									}
-									
-								}
-							} else if (next.getSrls().get(i + 1).contains("E-")) {
-								createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, token, i);
-
-							}
-						
-							iterator.previous();
-						}
-					} 
+						// case token is inside semantic role sequence
+					} else if (token.getSrls().get(i + 1).startsWith("I-")) {
+						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i);
+					}
 				}
 				INode next = getNextNode(nodeForToken, pGraph);
 				if (next != null) {
@@ -254,8 +198,47 @@ public class SRLabeler implements IPipelineStage {
 		}
 
 	}
-	
-	private void createSRLArc(INode from, INode to, IArcType type, ParseGraph pGraph, String iobes, List<SRLToken> verbTokens, SRLToken token, int verbNumber) {
+
+	private void addArcToNextNotOutsideNode(ParseGraph pGraph, IArcType arcType, List<SRLToken> verbTokens, ListIterator<SRLToken> iterator,
+			INode nodeForToken, int i) {
+		// add arc to next node in sequence
+		if (iterator.hasNext()) {
+			SRLToken next = iterator.next();
+			INode nextNode = firstMatchingNode(nodeForToken, next, pGraph);
+
+			// next node is inside sequence
+			if (next.getSrls().get(i + 1).startsWith("I-")) {
+				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, next, i);
+
+				// next node is outside sequence -> search first following node which is not outside
+			} else if (next.getSrls().get(i + 1).startsWith("O")) {
+				while (iterator.hasNext()) {
+					SRLToken further = iterator.next();
+					INode furtherNode = firstMatchingNode(nextNode, further, pGraph);
+					if (further.getSrls().get(i + 1).startsWith("I-")) {
+						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, further, i);
+
+						break;
+					} else if (further.getSrls().get(i + 1).startsWith("E-")) {
+						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, further, i);
+
+						break;
+					}
+
+				}
+				// next node is end of sequence
+			} else if (next.getSrls().get(i + 1).startsWith("E-")) {
+				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, next, i);
+
+			}
+
+			// reset iterator
+			iterator.previous();
+		}
+	}
+
+	private void createSRLArc(INode from, INode to, IArcType type, ParseGraph pGraph, String iobes, List<SRLToken> verbTokens,
+			SRLToken token, int verbNumber) {
 		ParseArc arc = pGraph.createArc(from, to, type);
 		arc.setAttributeValue(ROLE_VALUE_NAME, token.getSrls().get(verbNumber + 1).substring(2));
 		arc.setAttributeValue(IOBES, iobes);
@@ -324,7 +307,8 @@ public class SRLabeler implements IPipelineStage {
 			INode act = first;
 
 			do {
-				if (act.getAttributeNames().contains(TOKEN_WORD_VALUE_NAME) && act.getAttributeNames().contains(INSTRUCTION_NUMBER_VALUE_NAME)) {
+				if (act.getAttributeNames().contains(TOKEN_WORD_VALUE_NAME)
+						&& act.getAttributeNames().contains(INSTRUCTION_NUMBER_VALUE_NAME)) {
 					SRLToken token = new SRLToken(act.getAttributeValue(TOKEN_WORD_VALUE_NAME).toString(),
 							Integer.parseInt(act.getAttributeValue(INSTRUCTION_NUMBER_VALUE_NAME).toString()));
 					input.add(token);
