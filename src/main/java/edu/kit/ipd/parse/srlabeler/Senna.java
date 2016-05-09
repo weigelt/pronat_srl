@@ -57,8 +57,6 @@ public class Senna {
 		File outputFile = excecuteSenna(tempInputFile);
 		return readFile(outputFile, instructionNumber);
 	}
-	
-	
 
 	/**
 	 * Creates the process to run Senna
@@ -162,7 +160,7 @@ public class Senna {
 				}
 			}
 			error = sb.toString();
-			logger.info("SENNA finished with status: " + p.exitValue() + "\nMessage:\n" + error);
+			logger.error("SENNA finished with status: " + p.exitValue() + "\nMessage:\n" + error);
 		}
 		return tempOutputFile;
 
@@ -204,8 +202,7 @@ public class Senna {
 		while ((line = br.readLine()) != null) {
 			if (!line.trim().equals("")) {
 				String[] tokens = line.trim().split("\\s+");
-				
-				
+
 				List<String> srls = new ArrayList<String>();
 				for (int i = 1; i < tokens.length; i++) {
 					srls.add(tokens[i]);

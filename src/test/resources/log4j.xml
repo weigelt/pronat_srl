@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
 
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
@@ -8,10 +8,10 @@
       <param name="ConversionPattern" value="%-5p %c{1} - %m%n"/> 
     </layout> 
   </appender><logger name="edu.kit.ipd.parse.srlabeler">
-	<level value="info"></level></logger> 
+    <level value="info"></level></logger> 
 
-	<root>
-		<priority value="info" />
-		<appender-ref ref="console" />
-	</root>
-	</log4j:configuration>
+    <root>
+        <priority value="info" />
+        <appender-ref ref="console" />
+    </root>
+    </log4j:configuration>
