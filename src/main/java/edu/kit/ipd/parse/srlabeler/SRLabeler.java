@@ -161,7 +161,7 @@ public class SRLabeler implements IPipelineStage {
 		for (List<SRLToken> instruction : result) {
 
 			// get verb representing nodes
-			List<SRLToken> verbTokens = getVerbTokenOfInstruction(instruction);
+			List<SRLToken> verbTokens = getVerbTokensOfInstruction(instruction);
 			INode[] verbNodes = getVerbNodesOfInstruction(instruction, pGraph, current, verbTokens);
 
 			//iterate over token in instruction
@@ -246,7 +246,7 @@ public class SRLabeler implements IPipelineStage {
 	}
 
 	private boolean isSingleOrBeginning(String srl) {
-		return (srl.contains("S-") || srl.contains("B-"));
+		return (srl.startsWith("S-") || srl.startsWith("B-"));
 	}
 
 	private INode getNextNode(INode current, ParseGraph pGraph) {
@@ -289,7 +289,7 @@ public class SRLabeler implements IPipelineStage {
 		return verbNodes;
 	}
 
-	private List<SRLToken> getVerbTokenOfInstruction(List<SRLToken> instruction) {
+	private List<SRLToken> getVerbTokensOfInstruction(List<SRLToken> instruction) {
 		List<SRLToken> verbs = new ArrayList<SRLToken>();
 		for (SRLToken token : instruction) {
 			if (!token.getSrls().get(0).equals("-") && isSingleOrBeginning(token.getSrls().get(1))) {
