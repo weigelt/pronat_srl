@@ -243,6 +243,7 @@ public class SRLabeler implements IPipelineStage {
 		arc.setAttributeValue(ROLE_VALUE_NAME, token.getSrls().get(verbNumber + 1).substring(2));
 		arc.setAttributeValue(IOBES, iobes);
 		arc.setAttributeValue(CORRESPONDING_VERB, verbTokens.get(verbNumber).getSrls().get(0));
+		//TODO: get roles from Propbank
 	}
 
 	private boolean isSingleOrBeginning(String srl) {
