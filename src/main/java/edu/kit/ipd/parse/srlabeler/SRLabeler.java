@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Properties;
@@ -28,6 +29,8 @@ import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.luna.tools.ConfigManager;
+import edu.kit.ipd.parse.srlabeler.propbank.PropBankVerbNetMapper;
+import edu.kit.ipd.parse.srlabeler.propbank.VerbNetRoleConfidence;
 
 /**
  * This class represents a {@link IPipelineStage} to annotate the previously
@@ -49,6 +52,8 @@ public class SRLabeler implements IPipelineStage {
 
 	private boolean parsePerInstruction;
 
+	private PropBankVerbNetMapper pbVnMapper;
+
 	private static final String NEXT_ARCTYPE_NAME = "relation";
 
 	private static final String SRL_ARCTYPE_NAME = "srl";
@@ -63,13 +68,17 @@ public class SRLabeler implements IPipelineStage {
 
 	private static final String CORRESPONDING_VERB = "correspondingVerb";
 
+	private static final String VN_ROLE_NAME = "vnRole";
+
+	private static final String VN_ROLE_CONFIDENCE_NAME = "vnRoleConfidence";
+
 	private static final String IOBES = "IOBES";
 
 	@Override
 	public void init() {
 		props = ConfigManager.getConfiguration(getClass());
 		parsePerInstruction = Boolean.parseBoolean(props.getProperty("PARSE_PER_INSTRUCTION"));
-
+		pbVnMapper = new PropBankVerbNetMapper();
 	}
 
 	@Override
@@ -152,17 +161,40 @@ public class SRLabeler implements IPipelineStage {
 	private void putResultIntoGraph(List<List<SRLToken>> result, ParseGraph pGraph) {
 
 		//Prepare arc and token type
-		IArcType arcType = pGraph.getArcType(SRL_ARCTYPE_NAME);
-		arcType.addAttributeToType("String", ROLE_VALUE_NAME);
-		arcType.addAttributeToType("String", IOBES);
-		arcType.addAttributeToType("String", CORRESPONDING_VERB);
-
+		IArcType arcType;
+		if (!pGraph.hasArcType(SRL_ARCTYPE_NAME)) {
+			arcType = pGraph.createArcType(SRL_ARCTYPE_NAME);
+			arcType.addAttributeToType("String", ROLE_VALUE_NAME);
+			arcType.addAttributeToType("String", IOBES);
+			arcType.addAttributeToType("String", VN_ROLE_NAME);
+			arcType.addAttributeToType("float", VN_ROLE_CONFIDENCE_NAME);
+			arcType.addAttributeToType("String", CORRESPONDING_VERB);
+		} else {
+			arcType = pGraph.getArcType(SRL_ARCTYPE_NAME);
+		}
 		INode current = pGraph.getFirstUtteranceNode();
 		for (List<SRLToken> instruction : result) {
 
 			// get verb representing nodes
 			List<SRLToken> verbTokens = getVerbTokensOfInstruction(instruction);
 			INode[] verbNodes = getVerbNodesOfInstruction(instruction, pGraph, current, verbTokens);
+
+			// get argument numbers per Verb
+
+			List<Set<String>> totalArgNumbersPerVerb = new ArrayList<Set<String>>(verbTokens.size());
+
+			for (int i = 0; i < verbTokens.size(); i++) {
+				Set<String> argNumbers = new HashSet<String>();
+				for (SRLToken token : instruction) {
+					String role = token.getSrls().get(i + 1);
+					if (role.contains("-A")) {
+
+						argNumbers.add(role.substring(3));
+
+					}
+				}
+				totalArgNumbersPerVerb.add(argNumbers);
+			}
 
 			//iterate over token in instruction
 			ListIterator<SRLToken> iterator = instruction.listIterator();
@@ -175,17 +207,17 @@ public class SRLabeler implements IPipelineStage {
 
 					// case token is Single semantic role
 					if (token.getSrls().get(i + 1).startsWith("S-") && token.getSrls().get(0).equals("-")) {
-						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "S", verbTokens, token, i);
+						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "S", verbTokens, token, i, totalArgNumbersPerVerb.get(i));
 
 						// case token is beginning of semantic role sequence
 					} else if (token.getSrls().get(i + 1).startsWith("B-")) {
-						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "B", verbTokens, token, i);
+						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "B", verbTokens, token, i, totalArgNumbersPerVerb.get(i));
 
-						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i);
+						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i, totalArgNumbersPerVerb.get(i));
 
 						// case token is inside semantic role sequence
 					} else if (token.getSrls().get(i + 1).startsWith("I-")) {
-						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i);
+						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i, totalArgNumbersPerVerb.get(i));
 					}
 				}
 				INode next = getNextNode(nodeForToken, pGraph);
@@ -195,12 +227,13 @@ public class SRLabeler implements IPipelineStage {
 					current = nodeForToken;
 				}
 			}
+
 		}
 
 	}
 
 	private void addArcToNextNotOutsideNode(ParseGraph pGraph, IArcType arcType, List<SRLToken> verbTokens, ListIterator<SRLToken> iterator,
-			INode nodeForToken, int i) {
+			INode nodeForToken, int i, Set<String> argNumbers) {
 		// add arc to next node in sequence
 		if (iterator.hasNext()) {
 			SRLToken next = iterator.next();
@@ -208,7 +241,7 @@ public class SRLabeler implements IPipelineStage {
 
 			// next node is inside sequence
 			if (next.getSrls().get(i + 1).startsWith("I-")) {
-				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, next, i);
+				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, next, i, argNumbers);
 
 				// next node is outside sequence -> search first following node which is not outside
 			} else if (next.getSrls().get(i + 1).startsWith("O")) {
@@ -216,11 +249,11 @@ public class SRLabeler implements IPipelineStage {
 					SRLToken further = iterator.next();
 					INode furtherNode = firstMatchingNode(nextNode, further, pGraph);
 					if (further.getSrls().get(i + 1).startsWith("I-")) {
-						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, further, i);
+						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, further, i, argNumbers);
 
 						break;
 					} else if (further.getSrls().get(i + 1).startsWith("E-")) {
-						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, further, i);
+						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, further, i, argNumbers);
 
 						break;
 					}
@@ -228,7 +261,7 @@ public class SRLabeler implements IPipelineStage {
 				}
 				// next node is end of sequence
 			} else if (next.getSrls().get(i + 1).startsWith("E-")) {
-				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, next, i);
+				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, next, i, argNumbers);
 
 			}
 
@@ -238,12 +271,18 @@ public class SRLabeler implements IPipelineStage {
 	}
 
 	private void createSRLArc(INode from, INode to, IArcType type, ParseGraph pGraph, String iobes, List<SRLToken> verbTokens,
-			SRLToken token, int verbNumber) {
+			SRLToken token, int verbNumber, Set<String> totalArgNumbers) {
 		ParseArc arc = pGraph.createArc(from, to, type);
-		arc.setAttributeValue(ROLE_VALUE_NAME, token.getSrls().get(verbNumber + 1).substring(2));
+		String role = token.getSrls().get(verbNumber + 1).substring(2);
+		arc.setAttributeValue(ROLE_VALUE_NAME, role);
 		arc.setAttributeValue(IOBES, iobes);
-		arc.setAttributeValue(CORRESPONDING_VERB, verbTokens.get(verbNumber).getSrls().get(0));
-		//TODO: get roles from Propbank
+		String verb = verbTokens.get(verbNumber).getSrls().get(0);
+		arc.setAttributeValue(CORRESPONDING_VERB, verb);
+		ArrayList<VerbNetRoleConfidence> vnRCs = pbVnMapper.getPredicate(verb).getPossibleVNRoles(role.substring(1), totalArgNumbers);
+		if (!vnRCs.isEmpty()) {
+			arc.setAttributeValue(VN_ROLE_NAME, vnRCs.get(0).getRole());
+			arc.setAttributeValue(VN_ROLE_CONFIDENCE_NAME, vnRCs.get(0).getConfidence());
+		}
 	}
 
 	private boolean isSingleOrBeginning(String srl) {

@@ -36,7 +36,6 @@
 		<dependency>
 			<groupId>edu.kit.ipd.parse</groupId>
 			<artifactId>luna</artifactId>
-			<version>0.1.7-SNAPSHOT</version>
 			<classifier>javadoc</classifier>
 			<scope>provided</scope>
 		</dependency>
@@ -48,5 +47,6 @@
 			<groupId>edu.kit.ipd.parse</groupId>
 			<artifactId>ShallowNLP</artifactId>
 		</dependency>
+		
 	</dependencies>
 </project>

@@ -54,6 +54,31 @@ public class SRLabelerTest {
 		}
 	}
 
+	@Test
+	public void fourOne() {
+		ppd = new PrePipelineData();
+		input = "Hey Armar can you go to the table and grab me the popcorn bag please and then yeah can you bring it back to me";
+		ppd.setTranscription(input);
+
+		try {
+			snlp.exec(ppd);
+		} catch (PipelineStageException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		try {
+			srLabeler.exec(ppd);
+			printSRLGraph(ppd.getGraph());
+		} catch (PipelineStageException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (MissingDataException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	private void printSRLGraph(IGraph graph) {
 		String prettyPrint = "Graph: " + " {\n";
 
@@ -67,7 +92,9 @@ public class SRLabelerTest {
 			prettyPrint = prettyPrint.concat(" ---" + (arc.getAllAttributeValues().size() == 0 ? arc.getType()
 					: (arc.getAllAttributeValues().size() == 1 ? arc.getAttributeValue(arc.getAttributeNames().get(0))
 							: arc.getAttributeValue(arc.getAttributeNames().get(1)) + "-"
-									+ arc.getAttributeValue(arc.getAttributeNames().get(0)))));
+									+ arc.getAttributeValue(arc.getAttributeNames().get(0)) + ", ["
+									+ arc.getAttributeValue(arc.getAttributeNames().get(2)) + "="
+									+ arc.getAttributeValue(arc.getAttributeNames().get(3)) + "]")));
 			prettyPrint = prettyPrint.concat(" --->" + (trg.getAllAttributeValues().size() == 0 ? trg.getType().getName()
 					: (String) trg.getAttributeValue(trg.getAttributeNames().get(0))) + "\n");
 		}
