@@ -47,6 +47,10 @@
 			<groupId>edu.kit.ipd.parse</groupId>
 			<artifactId>ShallowNLP</artifactId>
 		</dependency>
-		
+		<dependency>
+			<groupId>edu.kit.ipd.parse</groupId>
+			<artifactId>senna-wrapper</artifactId>
+		</dependency>
+
 	</dependencies>
 </project>
