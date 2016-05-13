@@ -31,8 +31,8 @@ import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.luna.tools.ConfigManager;
 import edu.kit.ipd.parse.senna_wrapper.Senna;
 import edu.kit.ipd.parse.senna_wrapper.WordSennaResult;
-import edu.kit.ipd.parse.srlabeler.propbank.PropBankVerbNetMapper;
-import edu.kit.ipd.parse.srlabeler.propbank.VerbNetRoleConfidence;
+import edu.kit.ipd.parse.srlabeler.propbank.PropBankMapper;
+import edu.kit.ipd.parse.srlabeler.propbank.RolesetConfidence;
 
 /**
  * This class represents a {@link IPipelineStage} to annotate the previously
@@ -54,7 +54,7 @@ public class SRLabeler implements IPipelineStage {
 
 	private boolean parsePerInstruction;
 
-	private PropBankVerbNetMapper pbVnMapper;
+	private PropBankMapper pbMapper;
 
 	private static final String NEXT_ARCTYPE_NAME = "relation";
 
@@ -76,11 +76,13 @@ public class SRLabeler implements IPipelineStage {
 
 	private static final String IOBES = "IOBES";
 
+	private static final String PROPBANK_ROLE_DESCRIPTION = "pbRoleDescr";
+
 	@Override
 	public void init() {
 		props = ConfigManager.getConfiguration(getClass());
 		parsePerInstruction = Boolean.parseBoolean(props.getProperty("PARSE_PER_INSTRUCTION"));
-		pbVnMapper = new PropBankVerbNetMapper();
+		pbMapper = new PropBankMapper();
 	}
 
 	@Override
@@ -167,6 +169,7 @@ public class SRLabeler implements IPipelineStage {
 			arcType = pGraph.createArcType(SRL_ARCTYPE_NAME);
 			arcType.addAttributeToType("String", ROLE_VALUE_NAME);
 			arcType.addAttributeToType("String", IOBES);
+			arcType.addAttributeToType("String", PROPBANK_ROLE_DESCRIPTION);
 			arcType.addAttributeToType("String", VN_ROLE_NAME);
 			arcType.addAttributeToType("float", VN_ROLE_CONFIDENCE_NAME);
 			arcType.addAttributeToType("String", CORRESPONDING_VERB);
@@ -188,7 +191,7 @@ public class SRLabeler implements IPipelineStage {
 				Set<String> argNumbers = new HashSet<String>();
 				for (WordSennaResult token : instruction) {
 					String role = token.getAnalysisResults()[i + 1];
-					if (role.contains("-A")) {
+					if (role.contains("-A") && role.length() == 4) {
 
 						argNumbers.add(role.substring(3));
 
@@ -279,10 +282,20 @@ public class SRLabeler implements IPipelineStage {
 		arc.setAttributeValue(IOBES, iobes);
 		String verb = verbTokens.get(verbNumber).getAnalysisResults()[0];
 		arc.setAttributeValue(CORRESPONDING_VERB, verb);
-		ArrayList<VerbNetRoleConfidence> vnRCs = pbVnMapper.getPredicate(verb).getPossibleVNRoles(role.substring(1), totalArgNumbers);
-		if (!vnRCs.isEmpty()) {
-			arc.setAttributeValue(VN_ROLE_NAME, vnRCs.get(0).getRole());
-			arc.setAttributeValue(VN_ROLE_CONFIDENCE_NAME, vnRCs.get(0).getConfidence());
+		String roleNumber = role.substring(1);
+		ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, roleNumber, totalArgNumbers);
+		/*
+		 * ArrayList<VerbNetRoleConfidence> vnRCs =
+		 * pbVnMapper.getPredicate(verb).getPossibleVNRoles(role.substring(1),
+		 * totalArgNumbers); if (!vnRCs.isEmpty()) {
+		 * arc.setAttributeValue(VN_ROLE_NAME, vnRCs.get(0).getRole());
+		 * arc.setAttributeValue(VN_ROLE_CONFIDENCE_NAME,
+		 * vnRCs.get(0).getConfidence()); }
+		 */
+		if (!rsConfidences.isEmpty()) {
+			arc.setAttributeValue(PROPBANK_ROLE_DESCRIPTION, rsConfidences.get(0).getRoleset().getRoles().get(roleNumber).getDescr());
+			arc.setAttributeValue(VN_ROLE_NAME, rsConfidences.get(0).getRoleset().getRoles().get(roleNumber).getVnRoles()[0]);
+			arc.setAttributeValue(VN_ROLE_CONFIDENCE_NAME, rsConfidences.get(0).getConfidence());
 		}
 	}
 

@@ -20,6 +20,16 @@ public class SRLabelerTest {
 	String input;
 	PrePipelineData ppd;
 
+	private static final String ROLE_VALUE_NAME = "role";
+
+	private static final String VN_ROLE_NAME = "vnRole";
+
+	private static final String VN_ROLE_CONFIDENCE_NAME = "vnRoleConfidence";
+
+	private static final String IOBES = "IOBES";
+
+	private static final String PROPBANK_ROLE_DESCRIPTION = "pbRoleDescr";
+
 	@Before
 	public void setUp() {
 		srLabeler = new SRLabeler();
@@ -91,10 +101,9 @@ public class SRLabelerTest {
 					: (String) src.getAttributeValue(src.getAttributeNames().get(0)));
 			prettyPrint = prettyPrint.concat(" ---" + (arc.getAllAttributeValues().size() == 0 ? arc.getType()
 					: (arc.getAllAttributeValues().size() == 1 ? arc.getAttributeValue(arc.getAttributeNames().get(0))
-							: arc.getAttributeValue(arc.getAttributeNames().get(1)) + "-"
-									+ arc.getAttributeValue(arc.getAttributeNames().get(0)) + ", ["
-									+ arc.getAttributeValue(arc.getAttributeNames().get(2)) + "="
-									+ arc.getAttributeValue(arc.getAttributeNames().get(3)) + "]")));
+							: arc.getAttributeValue(IOBES) + "-" + arc.getAttributeValue(ROLE_VALUE_NAME) + ", [PB: "
+									+ arc.getAttributeValue(PROPBANK_ROLE_DESCRIPTION) + "; VN:" + arc.getAttributeValue(VN_ROLE_NAME)
+									+ "; Conf=" + arc.getAttributeValue(VN_ROLE_CONFIDENCE_NAME) + "]")));
 			prettyPrint = prettyPrint.concat(" --->" + (trg.getAllAttributeValues().size() == 0 ? trg.getType().getName()
 					: (String) trg.getAttributeValue(trg.getAttributeNames().get(0))) + "\n");
 		}
