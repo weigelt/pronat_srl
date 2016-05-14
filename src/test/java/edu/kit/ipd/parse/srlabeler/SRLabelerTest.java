@@ -1,9 +1,22 @@
 package edu.kit.ipd.parse.srlabeler;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.Iterator;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
@@ -19,6 +32,7 @@ public class SRLabelerTest {
 	SRLabeler srLabeler;
 	String input;
 	PrePipelineData ppd;
+	HashMap<String,String> hm;
 
 	private static final String ROLE_VALUE_NAME = "role";
 
@@ -36,47 +50,58 @@ public class SRLabelerTest {
 		srLabeler.init();
 		snlp = new ShallowNLP();
 		snlp.init();
+		hm = new HashMap<>();
+		try {
+			File file = new File(SRLabelerTest.class.getResource("/korpus.xml").toURI());
+			DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+			Document doc = dBuilder.parse(file);
+			NodeList nl = doc.getElementsByTagName("text");
+			for (int i = 0; i < nl.getLength(); i++) {
+				Element node = (Element) nl.item(i);
+				String name = node.getAttribute("name");
+				String text = node.getTextContent();
+				hm.put(name, text);
+			}
+		} catch (URISyntaxException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParserConfigurationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SAXException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 	@Test
-	public void singleInputTest() {
+	public void oneOne() {
 		ppd = new PrePipelineData();
-		//input = "okay Armar go to the table";
-		input = "okay Armar go to the table take the green cup go to the dishwasher open it put the green cup into the dishwasher";
+		input = hm.get("1.1");
 		ppd.setTranscription(input);
-
-		try {
-			snlp.exec(ppd);
-		} catch (PipelineStageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		try {
-			srLabeler.exec(ppd);
-			printSRLGraph(ppd.getGraph());
-		} catch (PipelineStageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (MissingDataException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void fourOne() {
 		ppd = new PrePipelineData();
-		input = "Hey Armar can you go to the table and grab me the popcorn bag please and then yeah can you bring it back to me";
+		input = hm.get("4.1");
 		ppd.setTranscription(input);
-
+		executeSNLPandSRL(ppd);
+	}
+	
+	private void executeSNLPandSRL(PrePipelineData ppd) {
 		try {
 			snlp.exec(ppd);
 		} catch (PipelineStageException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 		try {
 			srLabeler.exec(ppd);
 			printSRLGraph(ppd.getGraph());
