@@ -58,6 +58,8 @@ public class SRLabeler implements IPipelineStage {
 
 	private PropBankMapper pbMapper;
 
+	private Senna senna;
+
 	private static final String NEXT_ARCTYPE_NAME = "relation";
 
 	static final String SRL_ARCTYPE_NAME = "srl";
@@ -95,6 +97,7 @@ public class SRLabeler implements IPipelineStage {
 		props = ConfigManager.getConfiguration(getClass());
 		parsePerInstruction = Boolean.parseBoolean(props.getProperty("PARSE_PER_INSTRUCTION"));
 		pbMapper = new PropBankMapper();
+		senna = new Senna(new String[] { "-srl" });
 	}
 
 	@Override
@@ -151,7 +154,7 @@ public class SRLabeler implements IPipelineStage {
 	 */
 	public List<List<WordSennaResult>> parse(List<SRLToken> tokens) throws IOException, URISyntaxException, InterruptedException {
 		List<List<WordSennaResult>> result = new ArrayList<List<WordSennaResult>>();
-		Senna senna = new Senna(new String[] { "-srl" });
+
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
 			List<String> inputList = generateInstructionInput(tokens);
