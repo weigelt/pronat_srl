@@ -69,9 +69,25 @@ public class SRLabelerTest {
 	}
 
 	@Test
-	public void oneOne() {
+	public void oneTwo() {
 		ppd = new PrePipelineData();
-		input = hm.get("1.1");
+		input = hm.get("1.2");
+		ppd.setTranscription(input);
+		executeSNLPandSRL(ppd);
+	}
+
+	@Test
+	public void twoThree() {
+		ppd = new PrePipelineData();
+		input = hm.get("2.3");
+		ppd.setTranscription(input);
+		executeSNLPandSRL(ppd);
+	}
+
+	@Test
+	public void threeTwo() {
+		ppd = new PrePipelineData();
+		input = hm.get("3.2");
 		ppd.setTranscription(input);
 		executeSNLPandSRL(ppd);
 	}
@@ -80,6 +96,14 @@ public class SRLabelerTest {
 	public void fourOne() {
 		ppd = new PrePipelineData();
 		input = hm.get("4.1");
+		ppd.setTranscription(input);
+		executeSNLPandSRL(ppd);
+	}
+
+	@Test
+	public void fiveThree() {
+		ppd = new PrePipelineData();
+		input = hm.get("5.3");
 		ppd.setTranscription(input);
 		executeSNLPandSRL(ppd);
 	}

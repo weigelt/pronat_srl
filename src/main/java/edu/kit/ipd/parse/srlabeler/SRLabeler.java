@@ -209,7 +209,7 @@ public class SRLabeler implements IPipelineStage {
 				Set<String> argNumbers = new HashSet<String>();
 				for (WordSennaResult token : instruction) {
 					String role = token.getAnalysisResults()[i + 1];
-					if (role.contains("-A") && role.length() == 4) {
+					if (role.contains("-A") && role.substring(3).matches("\\d")) {
 
 						argNumbers.add(role.substring(3));
 
@@ -228,7 +228,7 @@ public class SRLabeler implements IPipelineStage {
 				for (int i = 0; i < verbNodes.length; i++) {
 
 					// case token is Single semantic role
-					if (token.getAnalysisResults()[i + 1].startsWith("S-") && token.getAnalysisResults()[0].equals("-")) {
+					if (token.getAnalysisResults()[i + 1].startsWith("S-")) {
 						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "S", verbTokens, token, i, totalArgNumbersPerVerb.get(i));
 
 						// case token is beginning of semantic role sequence
@@ -301,13 +301,18 @@ public class SRLabeler implements IPipelineStage {
 		String verb = verbTokens.get(verbNumber).getAnalysisResults()[0];
 		arc.setAttributeValue(CORRESPONDING_VERB, verb);
 		String roleNumber = role.substring(1);
+		if (!roleNumber.matches("\\d")) {
+			roleNumber = "";
+		}
 		ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, totalArgNumbers);
 
 		if (!rsConfidences.isEmpty()) {
 			RolesetConfidence rsC = rsConfidences.get(0);
 			Roleset rs = rsC.getRoleset();
-			arc.setAttributeValue(PROPBANK_ROLE_DESCRIPTION, rs.getRoles().get(roleNumber).getDescr());
-			arc.setAttributeValue(VN_ROLE_NAME, rs.getRoles().get(roleNumber).getVnRoles()[0]);
+			if (!(roleNumber.equals(""))) {
+				arc.setAttributeValue(PROPBANK_ROLE_DESCRIPTION, rs.getRoles().get(roleNumber).getDescr());
+				arc.setAttributeValue(VN_ROLE_NAME, rs.getRoles().get(roleNumber).getVnRoles()[0]);
+			}
 			arc.setAttributeValue(ROLE_CONFIDENCE_NAME, rsC.getConfidence());
 			arc.setAttributeValue(PROP_BANK_ROLESET_DESCR, rs.getDescr());
 			arc.setAttributeValue(EVENT_TYPES, Arrays.toString(rs.getEventTypes()));
