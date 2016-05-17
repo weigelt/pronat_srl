@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
+ * This class represents a PropBank Roleset
+ * 
  * @author Tobias Hey
  *
  */
@@ -27,6 +29,8 @@ public class Roleset {
 	private HashMap<String, Argument> roles;
 
 	/**
+	 * Constrcuts a new {@link Roleset}
+	 * 
 	 * @param id
 	 * @param descr
 	 * @param lemma

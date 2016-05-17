@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -32,6 +33,7 @@ import edu.kit.ipd.parse.luna.tools.ConfigManager;
 import edu.kit.ipd.parse.senna_wrapper.Senna;
 import edu.kit.ipd.parse.senna_wrapper.WordSennaResult;
 import edu.kit.ipd.parse.srlabeler.propbank.PropBankMapper;
+import edu.kit.ipd.parse.srlabeler.propbank.Roleset;
 import edu.kit.ipd.parse.srlabeler.propbank.RolesetConfidence;
 
 /**
@@ -58,25 +60,35 @@ public class SRLabeler implements IPipelineStage {
 
 	private static final String NEXT_ARCTYPE_NAME = "relation";
 
-	private static final String SRL_ARCTYPE_NAME = "srl";
+	static final String SRL_ARCTYPE_NAME = "srl";
 
 	private static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
 
-	private static final String ROLE_VALUE_NAME = "role";
+	static final String ROLE_VALUE_NAME = "role";
 
 	private static final String NEXT_VALUE_NAME = "value";
 
 	private static final String TOKEN_WORD_VALUE_NAME = "value";
 
-	private static final String CORRESPONDING_VERB = "correspondingVerb";
+	static final String CORRESPONDING_VERB = "correspondingVerb";
 
-	private static final String VN_ROLE_NAME = "vnRole";
+	static final String VN_ROLE_NAME = "vnRole";
 
-	private static final String VN_ROLE_CONFIDENCE_NAME = "vnRoleConfidence";
+	static final String ROLE_CONFIDENCE_NAME = "roleConfidence";
 
-	private static final String IOBES = "IOBES";
+	static final String IOBES = "IOBES";
 
-	private static final String PROPBANK_ROLE_DESCRIPTION = "pbRoleDescr";
+	static final String PROPBANK_ROLE_DESCRIPTION = "pbRole";
+
+	static final String EVENT_TYPES = "eventTypes";
+
+	static final String FRAME_NET_FRAMES = "frameNetFrames";
+
+	static final String VERB_NET_FRAMES = "verbNetFrames";
+
+	static final String PROP_BANK_ROLESET_DESCR = "propBankRolesetDescr";
+
+	static final String PROP_BANK_ROLESET_ID = "propBankRolesetID";
 
 	@Override
 	public void init() {
@@ -163,7 +175,7 @@ public class SRLabeler implements IPipelineStage {
 
 	private void putResultIntoGraph(List<List<WordSennaResult>> result, ParseGraph pGraph) {
 
-		//Prepare arc and token type
+		//Prepare arc type
 		IArcType arcType;
 		if (!pGraph.hasArcType(SRL_ARCTYPE_NAME)) {
 			arcType = pGraph.createArcType(SRL_ARCTYPE_NAME);
@@ -171,8 +183,14 @@ public class SRLabeler implements IPipelineStage {
 			arcType.addAttributeToType("String", IOBES);
 			arcType.addAttributeToType("String", PROPBANK_ROLE_DESCRIPTION);
 			arcType.addAttributeToType("String", VN_ROLE_NAME);
-			arcType.addAttributeToType("float", VN_ROLE_CONFIDENCE_NAME);
+			arcType.addAttributeToType("float", ROLE_CONFIDENCE_NAME);
 			arcType.addAttributeToType("String", CORRESPONDING_VERB);
+			arcType.addAttributeToType("String", PROP_BANK_ROLESET_ID);
+			arcType.addAttributeToType("String", PROP_BANK_ROLESET_DESCR);
+			arcType.addAttributeToType("String", VERB_NET_FRAMES);
+			arcType.addAttributeToType("String", FRAME_NET_FRAMES);
+			arcType.addAttributeToType("String", EVENT_TYPES);
+
 		} else {
 			arcType = pGraph.getArcType(SRL_ARCTYPE_NAME);
 		}
@@ -283,19 +301,19 @@ public class SRLabeler implements IPipelineStage {
 		String verb = verbTokens.get(verbNumber).getAnalysisResults()[0];
 		arc.setAttributeValue(CORRESPONDING_VERB, verb);
 		String roleNumber = role.substring(1);
-		ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, roleNumber, totalArgNumbers);
-		/*
-		 * ArrayList<VerbNetRoleConfidence> vnRCs =
-		 * pbVnMapper.getPredicate(verb).getPossibleVNRoles(role.substring(1),
-		 * totalArgNumbers); if (!vnRCs.isEmpty()) {
-		 * arc.setAttributeValue(VN_ROLE_NAME, vnRCs.get(0).getRole());
-		 * arc.setAttributeValue(VN_ROLE_CONFIDENCE_NAME,
-		 * vnRCs.get(0).getConfidence()); }
-		 */
+		ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, totalArgNumbers);
+
 		if (!rsConfidences.isEmpty()) {
-			arc.setAttributeValue(PROPBANK_ROLE_DESCRIPTION, rsConfidences.get(0).getRoleset().getRoles().get(roleNumber).getDescr());
-			arc.setAttributeValue(VN_ROLE_NAME, rsConfidences.get(0).getRoleset().getRoles().get(roleNumber).getVnRoles()[0]);
-			arc.setAttributeValue(VN_ROLE_CONFIDENCE_NAME, rsConfidences.get(0).getConfidence());
+			RolesetConfidence rsC = rsConfidences.get(0);
+			Roleset rs = rsC.getRoleset();
+			arc.setAttributeValue(PROPBANK_ROLE_DESCRIPTION, rs.getRoles().get(roleNumber).getDescr());
+			arc.setAttributeValue(VN_ROLE_NAME, rs.getRoles().get(roleNumber).getVnRoles()[0]);
+			arc.setAttributeValue(ROLE_CONFIDENCE_NAME, rsC.getConfidence());
+			arc.setAttributeValue(PROP_BANK_ROLESET_DESCR, rs.getDescr());
+			arc.setAttributeValue(EVENT_TYPES, Arrays.toString(rs.getEventTypes()));
+			arc.setAttributeValue(FRAME_NET_FRAMES, Arrays.toString(rs.getFnFrames()));
+			arc.setAttributeValue(PROP_BANK_ROLESET_ID, rs.getId());
+			arc.setAttributeValue(VERB_NET_FRAMES, Arrays.toString(rs.getVnFrames()));
 		}
 	}
 

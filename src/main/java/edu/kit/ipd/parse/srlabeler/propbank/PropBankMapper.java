@@ -11,6 +11,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * This class represents the Mapping to the PropBank rolesets.
+ * 
+ * @author Tobias Hey
+ *
+ */
 public final class PropBankMapper {
 
 	private static final HashMap<String, List<Roleset>> ROLESETS;
@@ -72,27 +78,36 @@ public final class PropBankMapper {
 
 	}
 
-	public ArrayList<RolesetConfidence> getPossibleRolesets(String lemma, String argNumber, Set<String> totalArgNumbers) {
+	/**
+	 * Returns a list of possible Rolesets for the specified lemma and argument
+	 * numbers
+	 * 
+	 * @param lemma
+	 *            The lemma of the verb to look after
+	 * @param totalArgNumbers
+	 *            The total Argument numbers in this phrase
+	 * @return a list of possible {@link Roleset}
+	 */
+	public ArrayList<RolesetConfidence> getPossibleRolesets(String lemma, Set<String> totalArgNumbers) {
 		ArrayList<RolesetConfidence> result = new ArrayList<RolesetConfidence>();
 		List<Roleset> rolesets = ROLESETS.get(lemma);
 		for (Roleset rs : rolesets) {
 
 			HashMap<String, Argument> roles = rs.getRoles();
-			if (roles.containsKey(argNumber)) {
-				boolean candidate = true;
-				int correctArguments = 0;
-				for (String arg : totalArgNumbers) {
-					if (!roles.containsKey(arg)) {
-						candidate = false;
-						break;
-					}
-					correctArguments++;
+			boolean candidate = true;
+			int correctArguments = 0;
+			for (String arg : totalArgNumbers) {
+				if (!roles.containsKey(arg)) {
+					candidate = false;
+					break;
 				}
-
-				if (candidate) {
-					result.add(new RolesetConfidence(rs, ((float) correctArguments) / totalArgNumbers.size(), correctArguments));
-				}
+				correctArguments++;
 			}
+
+			if (candidate) {
+				result.add(new RolesetConfidence(rs, ((float) correctArguments) / totalArgNumbers.size(), correctArguments));
+			}
+
 		}
 		float[] confidences = new float[result.size()];
 		for (int i = 0; i < result.size(); i++) {
