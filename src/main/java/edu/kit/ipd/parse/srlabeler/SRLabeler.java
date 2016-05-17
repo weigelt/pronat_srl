@@ -112,7 +112,7 @@ public class SRLabeler implements IPipelineStage {
 
 		try {
 			IGraph graph = prePipeData.getGraph();
-			List<SRLToken> input;
+			List<String[]> input;
 			if (graph instanceof ParseGraph) {
 				ParseGraph pGraph = (ParseGraph) graph;
 				input = generateInputList(pGraph);
@@ -142,8 +142,8 @@ public class SRLabeler implements IPipelineStage {
 	}
 
 	/**
-	 * This method parses the specified {@link Token}s with SENNA and returns
-	 * the contained words associated with their srl Tags
+	 * This method parses the specified tokens with SENNA and returns the
+	 * contained words associated with their srl Tags
 	 * 
 	 * @param tokens
 	 *            The {@link Token}s to process
@@ -152,7 +152,7 @@ public class SRLabeler implements IPipelineStage {
 	 * @throws URISyntaxException
 	 * @throws InterruptedException
 	 */
-	public List<List<WordSennaResult>> parse(List<SRLToken> tokens) throws IOException, URISyntaxException, InterruptedException {
+	public List<List<WordSennaResult>> parse(List<String[]> tokens) throws IOException, URISyntaxException, InterruptedException {
 		List<List<WordSennaResult>> result = new ArrayList<List<WordSennaResult>>();
 
 		if (parsePerInstruction) {
@@ -166,8 +166,8 @@ public class SRLabeler implements IPipelineStage {
 			}
 		} else {
 			String input = "";
-			for (SRLToken t : tokens) {
-				input += t.getWord() + " ";
+			for (String[] t : tokens) {
+				input += t[0] + " ";
 			}
 			File inputTmpFile = writeToTempFile(input);
 			logger.info("parsing SRL without instructions");
@@ -380,9 +380,26 @@ public class SRLabeler implements IPipelineStage {
 		return verbs;
 	}
 
-	private List<SRLToken> generateInputList(ParseGraph pGraph)
+	private List<String> generateInstructionInput(List<String[]> tokens) {
+		List<String> inputList = new ArrayList<String>();
+		int instructionNumber = 0;
+		String instruction = "";
+		for (String[] t : tokens) {
+
+			if (Integer.parseInt(t[1]) > instructionNumber) {
+				inputList.add(instruction);
+				instruction = "";
+			}
+			instruction += t[0] + " ";
+			instructionNumber = Integer.parseInt(t[1]);
+		}
+		inputList.add(instruction);
+		return inputList;
+	}
+
+	private List<String[]> generateInputList(ParseGraph pGraph)
 			throws PipelineStageException, IOException, URISyntaxException, InterruptedException {
-		List<SRLToken> input = new ArrayList<>();
+		List<String[]> input = new ArrayList<>();
 		INode first = pGraph.getFirstUtteranceNode();
 		if (first != null) {
 			INode act = first;
@@ -390,8 +407,8 @@ public class SRLabeler implements IPipelineStage {
 			do {
 				if (act.getAttributeNames().contains(TOKEN_WORD_VALUE_NAME)
 						&& act.getAttributeNames().contains(INSTRUCTION_NUMBER_VALUE_NAME)) {
-					SRLToken token = new SRLToken(act.getAttributeValue(TOKEN_WORD_VALUE_NAME).toString(),
-							Integer.parseInt(act.getAttributeValue(INSTRUCTION_NUMBER_VALUE_NAME).toString()));
+					String[] token = new String[] { act.getAttributeValue(TOKEN_WORD_VALUE_NAME).toString(),
+							act.getAttributeValue(INSTRUCTION_NUMBER_VALUE_NAME).toString() };
 					input.add(token);
 					act = getNextNode(act, pGraph);
 
@@ -406,23 +423,6 @@ public class SRLabeler implements IPipelineStage {
 			throw new PipelineStageException("Graph contains no first utterance node");
 		}
 		return input;
-	}
-
-	private List<String> generateInstructionInput(List<SRLToken> tokens) {
-		List<String> inputList = new ArrayList<String>();
-		int instructionNumber = 0;
-		String instruction = "";
-		for (SRLToken t : tokens) {
-
-			if (t.getInstructionNumber() > instructionNumber) {
-				inputList.add(instruction);
-				instruction = "";
-			}
-			instruction += t.getWord() + " ";
-			instructionNumber = t.getInstructionNumber();
-		}
-		inputList.add(instruction);
-		return inputList;
 	}
 
 	/**
