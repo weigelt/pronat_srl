@@ -108,6 +108,22 @@ public class SRLabelerTest {
 		executeSNLPandSRL(ppd);
 	}
 
+	@Test
+	public void ifFiveThree() {
+		ppd = new PrePipelineData();
+		input = hm.get("if.5.3");
+		ppd.setTranscription(input);
+		executeSNLPandSRL(ppd);
+	}
+
+	@Test
+	public void ifFourTen() {
+		ppd = new PrePipelineData();
+		input = hm.get("if.4.10");
+		ppd.setTranscription(input);
+		executeSNLPandSRL(ppd);
+	}
+
 	private void executeSNLPandSRL(PrePipelineData ppd) {
 		try {
 			snlp.exec(ppd);
