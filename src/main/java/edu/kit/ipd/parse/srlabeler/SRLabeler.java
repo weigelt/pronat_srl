@@ -20,7 +20,6 @@ import edu.kit.ipd.parse.luna.data.AbstractPipelineData;
 import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PipelineDataCastException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
-import edu.kit.ipd.parse.luna.data.token.Token;
 import edu.kit.ipd.parse.luna.graph.IArc;
 import edu.kit.ipd.parse.luna.graph.IArcType;
 import edu.kit.ipd.parse.luna.graph.IGraph;
@@ -62,35 +61,35 @@ public class SRLabeler implements IPipelineStage {
 
 	private static final String NEXT_ARCTYPE_NAME = "relation";
 
-	static final String SRL_ARCTYPE_NAME = "srl";
-
-	private static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
-
-	static final String ROLE_VALUE_NAME = "role";
-
 	private static final String NEXT_VALUE_NAME = "value";
 
 	private static final String TOKEN_WORD_VALUE_NAME = "value";
 
-	static final String CORRESPONDING_VERB = "correspondingVerb";
+	private static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
 
-	static final String VN_ROLE_NAME = "vnRole";
+	public static final String SRL_ARCTYPE_NAME = "srl";
 
-	static final String ROLE_CONFIDENCE_NAME = "roleConfidence";
+	public static final String ROLE_VALUE_NAME = "role";
 
-	static final String IOBES = "IOBES";
+	public static final String CORRESPONDING_VERB = "correspondingVerb";
 
-	static final String PROPBANK_ROLE_DESCRIPTION = "pbRole";
+	public static final String VN_ROLE_NAME = "vnRole";
 
-	static final String EVENT_TYPES = "eventTypes";
+	public static final String ROLE_CONFIDENCE_NAME = "roleConfidence";
 
-	static final String FRAME_NET_FRAMES = "frameNetFrames";
+	public static final String IOBES = "IOBES";
 
-	static final String VERB_NET_FRAMES = "verbNetFrames";
+	public static final String PROPBANK_ROLE_DESCRIPTION = "pbRole";
 
-	static final String PROP_BANK_ROLESET_DESCR = "propBankRolesetDescr";
+	public static final String EVENT_TYPES = "eventTypes";
 
-	static final String PROP_BANK_ROLESET_ID = "propBankRolesetID";
+	public static final String FRAME_NET_FRAMES = "frameNetFrames";
+
+	public static final String VERB_NET_FRAMES = "verbNetFrames";
+
+	public static final String PROP_BANK_ROLESET_DESCR = "propBankRolesetDescr";
+
+	public static final String PROP_BANK_ROLESET_ID = "propBankRolesetID";
 
 	@Override
 	public void init() {
@@ -146,8 +145,8 @@ public class SRLabeler implements IPipelineStage {
 	 * contained words associated with their srl Tags
 	 * 
 	 * @param tokens
-	 *            The {@link Token}s to process
-	 * @return the words and their srlTags as {@link WordSrlType}
+	 *            The tokens to process
+	 * @return the words and their srlTags as {@link WordSennaResult}
 	 * @throws IOException
 	 * @throws URISyntaxException
 	 * @throws InterruptedException
