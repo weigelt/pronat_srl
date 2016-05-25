@@ -93,6 +93,14 @@ public class SRLabelerTest {
 	}
 
 	@Test
+	public void doubleWordTest() {
+		ppd = new PrePipelineData();
+		input = "put the green green cup into the dishwasher";
+		ppd.setTranscription(input);
+		executeSNLPandSRL(ppd);
+	}
+
+	@Test
 	public void fourOne() {
 		ppd = new PrePipelineData();
 		input = hm.get("4.1");

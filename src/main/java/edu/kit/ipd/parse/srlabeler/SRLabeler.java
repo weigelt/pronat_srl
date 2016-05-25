@@ -261,7 +261,7 @@ public class SRLabeler implements IPipelineStage {
 		// add arc to next node in sequence
 		if (iterator.hasNext()) {
 			WordSennaResult next = iterator.next();
-			INode nextNode = getFirstMatchingNode(nodeForToken, next, pGraph);
+			INode nextNode = getFirstMatchingNode(getNextNode(nodeForToken, pGraph), next, pGraph);
 
 			// next node is inside sequence
 			if (next.getAnalysisResults()[i + 1].startsWith("I-")) {
@@ -300,6 +300,7 @@ public class SRLabeler implements IPipelineStage {
 		String role = token.getAnalysisResults()[verbNumber + 1].substring(2);
 		arc.setAttributeValue(ROLE_VALUE_NAME, role);
 		arc.setAttributeValue(IOBES, iobes);
+		//TODO Lemmatize Verb
 		String verb = verbTokens.get(verbNumber).getAnalysisResults()[0];
 		arc.setAttributeValue(CORRESPONDING_VERB, verb);
 		String roleNumber = role.substring(1);
@@ -342,12 +343,12 @@ public class SRLabeler implements IPipelineStage {
 		INode current = beginning;
 		IArcType arcType = pGraph.getArcType(NEXT_ARCTYPE_NAME);
 		Set<? extends IArc> outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
-		if (current.getAttributeValue(NEXT_VALUE_NAME).equals(token.getWord())) {
+		if (current.getAttributeValue(TOKEN_WORD_VALUE_NAME).equals(token.getWord())) {
 			return current;
 		} else {
 			while (!outgoingNextArcs.isEmpty()) {
 				current = getNextNode(current, pGraph);
-				if (current.getAttributeValue(NEXT_VALUE_NAME).equals(token.getWord())) {
+				if (current.getAttributeValue(TOKEN_WORD_VALUE_NAME).equals(token.getWord())) {
 					return current;
 				}
 				outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
