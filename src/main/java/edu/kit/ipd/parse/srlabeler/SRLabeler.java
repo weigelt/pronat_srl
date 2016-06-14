@@ -91,6 +91,8 @@ public class SRLabeler implements IPipelineStage {
 
 	public static final String PROP_BANK_ROLESET_ID = "propBankRolesetID";
 
+	public static final String FN_ROLE_NAME = "fnRole";
+
 	@Override
 	public void init() {
 		props = ConfigManager.getConfiguration(getClass());
@@ -185,6 +187,7 @@ public class SRLabeler implements IPipelineStage {
 			arcType.addAttributeToType("String", IOBES);
 			arcType.addAttributeToType("String", PROPBANK_ROLE_DESCRIPTION);
 			arcType.addAttributeToType("String", VN_ROLE_NAME);
+			arcType.addAttributeToType("String", FN_ROLE_NAME);
 			arcType.addAttributeToType("float", ROLE_CONFIDENCE_NAME);
 			arcType.addAttributeToType("String", CORRESPONDING_VERB);
 			arcType.addAttributeToType("String", PROP_BANK_ROLESET_ID);
@@ -314,7 +317,8 @@ public class SRLabeler implements IPipelineStage {
 			Roleset rs = rsC.getRoleset();
 			if (!(roleNumber.equals(""))) {
 				arc.setAttributeValue(PROPBANK_ROLE_DESCRIPTION, rs.getRoles().get(roleNumber).getDescr());
-				arc.setAttributeValue(VN_ROLE_NAME, rs.getRoles().get(roleNumber).getVnRoles()[0]);
+				arc.setAttributeValue(VN_ROLE_NAME, Arrays.toString(rs.getRoles().get(roleNumber).getVnRoles()));
+				arc.setAttributeValue(FN_ROLE_NAME, Arrays.toString(rs.getRoles().get(roleNumber).getFnRoles()));
 			}
 			arc.setAttributeValue(ROLE_CONFIDENCE_NAME, rsC.getConfidence());
 			arc.setAttributeValue(PROP_BANK_ROLESET_DESCR, rs.getDescr());

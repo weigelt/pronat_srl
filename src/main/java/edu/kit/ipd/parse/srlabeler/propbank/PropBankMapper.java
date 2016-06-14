@@ -91,6 +91,9 @@ public final class PropBankMapper {
 	public ArrayList<RolesetConfidence> getPossibleRolesets(String lemma, Set<String> totalArgNumbers) {
 		ArrayList<RolesetConfidence> result = new ArrayList<RolesetConfidence>();
 		List<Roleset> rolesets = ROLESETS.get(lemma);
+		if (rolesets == null) {
+			return result;
+		}
 		for (Roleset rs : rolesets) {
 
 			HashMap<String, Argument> roles = rs.getRoles();
