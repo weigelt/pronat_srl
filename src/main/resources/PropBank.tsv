@@ -2455,8 +2455,8 @@ gnash.01	gnash	grind together	crane-40.3.2	Body_movement	body	0	causer of grindi
 gnash.02	gnash	remove through grinding	crane-40.3.2	Body_movement	body	0	causer of removal			1	thing being removed			2	source of arg1		
 gnaw.01	gnaw	bite, chew on	chew-39.2-1		contact	0	gnawer	Agent		1	thing chewed	Patient	
 gnaw.02	gnaw	to cause persistent worry or pain				0	causer			1	gnawed at		
-go.01	go	motion	escape-51.1|meander-47.7	Motion|Process_continue	motion|stative	1	entity in motion/goer	Theme	Event|Theme	2	extent			3	start point			4	end point, end state of arg1		
-go.02	go	self-directed motion	escape-51.1	Motion|Process_continue	motion	0	goer			1	journey			3	start point			4	end point		
+go.01	go	motion	escape-51.1|meander-47.7	Motion|Process_continue	motion|stative	1	entity in motion/goer	Theme	Event|Theme	2	extent			3	start point	Source		4	end point, end state of arg1	Destination	
+go.02	go	self-directed motion	escape-51.1	Motion|Process_continue	motion	0	goer			1	journey			3	start point	Source		4	end point	Destination	
 go.03	go	pursue (often with after)				0	pursuer			1	goal		
 go.04	go	modal / future			
 go.05	go	serial verb construction				0	subject			1	subsequent action		
