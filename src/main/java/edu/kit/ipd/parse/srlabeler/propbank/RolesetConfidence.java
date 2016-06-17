@@ -11,7 +11,7 @@ public class RolesetConfidence {
 
 	private Roleset rs;
 
-	private float confidence;
+	private double confidence;
 
 	private int numberOfCorrectArguments;
 
@@ -25,7 +25,7 @@ public class RolesetConfidence {
 	/**
 	 * @return the confidence
 	 */
-	public float getConfidence() {
+	public double getConfidence() {
 		return confidence;
 	}
 
@@ -41,7 +41,7 @@ public class RolesetConfidence {
 	 * @param confidence
 	 * @param numberOfCorrectArguments
 	 */
-	public RolesetConfidence(Roleset roleset, float confidence, int numberOfCorrectArguments) {
+	public RolesetConfidence(Roleset roleset, double confidence, int numberOfCorrectArguments) {
 		this.rs = roleset;
 		this.confidence = confidence;
 		this.numberOfCorrectArguments = numberOfCorrectArguments;
@@ -52,7 +52,7 @@ public class RolesetConfidence {
 	 * 
 	 * @param confidence
 	 */
-	public void setConfidence(float confidence) {
+	public void setConfidence(double confidence) {
 		this.confidence = confidence;
 
 	}

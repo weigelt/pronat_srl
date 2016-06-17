@@ -188,7 +188,7 @@ public class SRLabeler implements IPipelineStage {
 			arcType.addAttributeToType("String", PROPBANK_ROLE_DESCRIPTION);
 			arcType.addAttributeToType("String", VN_ROLE_NAME);
 			arcType.addAttributeToType("String", FN_ROLE_NAME);
-			arcType.addAttributeToType("float", ROLE_CONFIDENCE_NAME);
+			arcType.addAttributeToType("Double", ROLE_CONFIDENCE_NAME);
 			arcType.addAttributeToType("String", CORRESPONDING_VERB);
 			arcType.addAttributeToType("String", PROP_BANK_ROLESET_ID);
 			arcType.addAttributeToType("String", PROP_BANK_ROLESET_DESCR);

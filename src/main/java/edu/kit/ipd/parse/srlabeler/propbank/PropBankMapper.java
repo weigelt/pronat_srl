@@ -108,14 +108,14 @@ public final class PropBankMapper {
 			}
 
 			if (candidate) {
-				result.add(new RolesetConfidence(rs, ((float) correctArguments) / totalArgNumbers.size(), correctArguments));
+				result.add(new RolesetConfidence(rs, ((double) correctArguments) / (double) totalArgNumbers.size(), correctArguments));
 			}
 
 		}
-		float[] confidences = new float[result.size()];
+		double[] confidences = new double[result.size()];
 		for (int i = 0; i < result.size(); i++) {
 			RolesetConfidence rc = result.get(i);
-			float confidence = rc.getConfidence();
+			double confidence = rc.getConfidence();
 			int count = 0;
 			for (RolesetConfidence rcn : result) {
 				if (rcn.getConfidence() == confidence) {
