@@ -60,37 +60,20 @@ public class SRLabeler implements IPipelineStage {
 	private Senna senna;
 
 	private static final String NEXT_ARCTYPE_NAME = "relation";
-
-	private static final String NEXT_VALUE_NAME = "value";
-
 	private static final String TOKEN_WORD_VALUE_NAME = "value";
-
 	private static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
-
 	public static final String SRL_ARCTYPE_NAME = "srl";
-
 	public static final String ROLE_VALUE_NAME = "role";
-
 	public static final String CORRESPONDING_VERB = "correspondingVerb";
-
 	public static final String VN_ROLE_NAME = "vnRole";
-
 	public static final String ROLE_CONFIDENCE_NAME = "roleConfidence";
-
 	public static final String IOBES = "IOBES";
-
 	public static final String PROPBANK_ROLE_DESCRIPTION = "pbRole";
-
 	public static final String EVENT_TYPES = "eventTypes";
-
 	public static final String FRAME_NET_FRAMES = "frameNetFrames";
-
 	public static final String VERB_NET_FRAMES = "verbNetFrames";
-
 	public static final String PROP_BANK_ROLESET_DESCR = "propBankRolesetDescr";
-
 	public static final String PROP_BANK_ROLESET_ID = "propBankRolesetID";
-
 	public static final String FN_ROLE_NAME = "fnRole";
 
 	@Override

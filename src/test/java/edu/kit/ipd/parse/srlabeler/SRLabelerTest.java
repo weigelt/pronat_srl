@@ -53,16 +53,16 @@ public class SRLabelerTest {
 				hm.put(name, text);
 			}
 		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		} catch (ParserConfigurationException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		} catch (SAXException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		}
 
@@ -136,17 +136,17 @@ public class SRLabelerTest {
 		try {
 			snlp.exec(ppd);
 		} catch (PipelineStageException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		}
 		try {
 			srLabeler.exec(ppd);
 			printSRLGraph(ppd.getGraph());
 		} catch (PipelineStageException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		} catch (MissingDataException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		}
 	}

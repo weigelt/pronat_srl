@@ -66,13 +66,13 @@ public final class PropBankMapper {
 
 			reader.close();
 		} catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		} catch (NumberFormatException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			// TODO Auto
 			e.printStackTrace();
 		}
 
