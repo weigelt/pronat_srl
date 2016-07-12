@@ -101,6 +101,14 @@ public class SRLabelerTest {
 	}
 
 	@Test
+	public void itsTest() {
+		ppd = new PrePipelineData();
+		input = "Armar put the green cup on the table it's next to the popcorn";
+		ppd.setTranscription(input);
+		executeSNLPandSRL(ppd);
+	}
+
+	@Test
 	public void fourOne() {
 		ppd = new PrePipelineData();
 		input = hm.get("4.1");

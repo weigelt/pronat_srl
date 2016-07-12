@@ -81,7 +81,7 @@ public class SRLabeler implements IPipelineStage {
 		props = ConfigManager.getConfiguration(getClass());
 		parsePerInstruction = Boolean.parseBoolean(props.getProperty("PARSE_PER_INSTRUCTION"));
 		pbMapper = new PropBankMapper();
-		senna = new Senna(new String[] { "-srl" });
+		senna = new Senna(new String[] { "-usrtokens", "-srl" });
 	}
 
 	@Override
