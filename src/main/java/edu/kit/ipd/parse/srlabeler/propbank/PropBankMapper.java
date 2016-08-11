@@ -106,9 +106,15 @@ public final class PropBankMapper {
 				}
 				correctArguments++;
 			}
+			Double confidence;
+			if (totalArgNumbers.isEmpty()) {
+				confidence = 0.0d;
+			} else {
+				confidence = (double) correctArguments / (double) totalArgNumbers.size();
+			}
 
 			if (candidate) {
-				result.add(new RolesetConfidence(rs, ((double) correctArguments) / (double) totalArgNumbers.size(), correctArguments));
+				result.add(new RolesetConfidence(rs, confidence, correctArguments));
 			}
 
 		}
