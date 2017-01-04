@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.HashMap;
-import java.util.Iterator;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -17,11 +16,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
-import edu.kit.ipd.parse.luna.graph.IArc;
-import edu.kit.ipd.parse.luna.graph.IGraph;
-import edu.kit.ipd.parse.luna.graph.INode;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.shallownlp.ShallowNLP;
 
@@ -149,45 +144,10 @@ public class SRLabelerTest {
 		}
 		try {
 			srLabeler.exec(ppd);
-			printSRLGraph(ppd.getGraph());
 		} catch (PipelineStageException e) {
 			// TODO Auto
 			e.printStackTrace();
-		} catch (MissingDataException e) {
-			// TODO Auto
-			e.printStackTrace();
 		}
-	}
-
-	private void printSRLGraph(IGraph graph) {
-		String prettyPrint = "Graph: " + " {\n";
-
-		Iterator<? extends IArc> e = graph.getArcs().iterator();
-		while (e.hasNext()) {
-			IArc arc = e.next();
-			INode src = arc.getSourceNode();
-			INode trg = arc.getTargetNode();
-			prettyPrint = prettyPrint.concat(src.getAllAttributeValues().size() == 0 ? src.getType().getName()
-					: (String) src.getAttributeValue(src.getAttributeNames().get(0)));
-			prettyPrint = prettyPrint.concat(" ---" + (arc.getAllAttributeValues().size() == 0 ? arc.getType()
-					: (arc.getAllAttributeValues().size() == 1 ? arc.getAttributeValue(arc.getAttributeNames().get(0))
-							: arc.getAttributeValue(SRLabeler.IOBES) + "-" + arc.getAttributeValue(SRLabeler.ROLE_VALUE_NAME) + ", [PB: "
-									+ arc.getAttributeValue(SRLabeler.PROPBANK_ROLE_DESCRIPTION) + "; VN:"
-									+ arc.getAttributeValue(SRLabeler.VN_ROLE_NAME) + "; Conf="
-									+ arc.getAttributeValue(SRLabeler.ROLE_CONFIDENCE_NAME) + "]")));
-			prettyPrint = prettyPrint.concat(" --->" + (trg.getAllAttributeValues().size() == 0 ? trg.getType().getName()
-					: (String) trg.getAttributeValue(trg.getAttributeNames().get(0))) + "\n");
-		}
-
-		Iterator<INode> u = graph.getNodes().iterator();
-		while (u.hasNext()) {
-			INode node = u.next();
-			if (node.getIncomingArcs().isEmpty() && node.getOutgoingArcs().isEmpty())
-				prettyPrint = prettyPrint.concat(node.getAllAttributeValues().size() == 0 ? node.getType().getName()
-						: node.getAttributeValue(node.getAttributeNames().get(0)) + "\n");
-		}
-		prettyPrint = prettyPrint.concat("}\n");
-		System.out.println(prettyPrint);
 	}
 
 }

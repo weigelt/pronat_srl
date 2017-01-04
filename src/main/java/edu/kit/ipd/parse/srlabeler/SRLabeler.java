@@ -118,7 +118,7 @@ public class SRLabeler implements IPipelineStage {
 						} else {
 							instruction = tokens;
 						}
-						int index;
+
 						List<Pair<String, Token>> verbTokens = extractVerbTokens(instructionResult, instruction);
 
 						// for each recognized Verb
@@ -211,7 +211,7 @@ public class SRLabeler implements IPipelineStage {
 			srlToken.setEventTypes(rs.getEventTypes());
 			for (String role : roleTokens.keySet()) {
 				for (Token token : roleTokens.get(role)) {
-					srlToken.addDependendToken(role, token);
+					srlToken.addDependentToken(role, token);
 				}
 				if (role.startsWith("A") && rs.getRoles().containsKey(role.substring(1))) {
 					srlToken.addRoleDescription(role, rs.getRoles().get(role.substring(1)).getDescr(),
