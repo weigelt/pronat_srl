@@ -6,7 +6,10 @@ import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Properties;
@@ -20,10 +23,12 @@ import edu.kit.ipd.parse.luna.data.AbstractPipelineData;
 import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PipelineDataCastException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
+import edu.kit.ipd.parse.luna.data.token.SRLToken;
+import edu.kit.ipd.parse.luna.data.token.Token;
 import edu.kit.ipd.parse.luna.graph.IArc;
 import edu.kit.ipd.parse.luna.graph.IArcType;
-import edu.kit.ipd.parse.luna.graph.IGraph;
 import edu.kit.ipd.parse.luna.graph.INode;
+import edu.kit.ipd.parse.luna.graph.Pair;
 import edu.kit.ipd.parse.luna.graph.ParseArc;
 import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
@@ -95,19 +100,91 @@ public class SRLabeler implements IPipelineStage {
 		}
 
 		try {
-			IGraph graph = prePipeData.getGraph();
-			List<String[]> input;
-			if (graph instanceof ParseGraph) {
-				ParseGraph pGraph = (ParseGraph) graph;
-				input = generateInputList(pGraph);
+			Token[] tokens = prePipeData.getTokens();
+			List<Token[]> instructionTokens = getInstructionTokens(tokens);
+			List<List<WordSennaResult>> result = parseWithTokens(instructionTokens);
+			if (parsePerInstruction) {
+				if (instructionTokens.size() == result.size()) {
+					Iterator<Token[]> tokenIt = instructionTokens.iterator();
+					Iterator<List<WordSennaResult>> resultIt = result.iterator();
+					while (resultIt.hasNext()) {
+						List<WordSennaResult> instructionResult = resultIt.next();
+						Token[] instruction = tokenIt.next();
+						List<Pair<String, Token>> verbTokens = new ArrayList<>();
 
-				List<List<WordSennaResult>> result = parse(input);
-				putResultIntoGraph(result, pGraph);
+						int index = 0;
+						for (WordSennaResult wordSennaResult : instructionResult) {
+							if (!wordSennaResult.getAnalysisResults()[0].equals("-")
+									&& isSingleOrBeginning(wordSennaResult.getAnalysisResults()[1])) {
+								verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction[index]));
+							}
+							index++;
+						}
+						for (int i = 0; i < verbTokens.size(); i++) {
 
+							HashMap<String, List<Token>> correspondingTokens = new HashMap<>();
+							index = 0;
+							for (WordSennaResult wordSennaResult : instructionResult) {
+								if (!wordSennaResult.getAnalysisResults()[i + 1].equals("O")
+										&& !wordSennaResult.getAnalysisResults()[i + 1].equals("-")) {
+									String role = wordSennaResult.getAnalysisResults()[i + 1].substring(2);
+									if (correspondingTokens.containsKey(role)) {
+										correspondingTokens.get(role).add(instruction[index]);
+									} else {
+										List<Token> list = new ArrayList<Token>();
+										list.add(instruction[index]);
+										correspondingTokens.put(role, list);
+									}
+
+								}
+								index++;
+							}
+							Set<String> totalRoleNumbers = new HashSet<>();
+							for (String role : correspondingTokens.keySet()) {
+								if (role.startsWith("A")) {
+									totalRoleNumbers.add(role.substring(1));
+								}
+							}
+							Token verbToken = verbTokens.get(i).getRight();
+							String verb = verbTokens.get(i).getLeft();
+							ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, totalRoleNumbers);
+							SRLToken srlToken = new SRLToken(verbToken);
+							if (!rsConfidences.isEmpty()) {
+								RolesetConfidence rsC = rsConfidences.get(0);
+								Roleset rs = rsC.getRoleset();
+								srlToken.setCorrespondingVerb(verb);
+								srlToken.setRoleConfidence(rsC.getConfidence());
+								srlToken.setPbRolesetDescr(rs.getDescr());
+								srlToken.setPbRolesetID(rs.getId());
+								srlToken.setVnFrames(rs.getVnFrames());
+								srlToken.setFnFrames(rs.getFnFrames());
+								srlToken.setEventTypes(rs.getEventTypes());
+								for (String role : correspondingTokens.keySet()) {
+									for (Token token : correspondingTokens.get(role)) {
+										srlToken.addDependendToken(role, token);
+									}
+									if (role.startsWith("A") && rs.getRoles().containsKey(role.substring(1))) {
+										srlToken.addRoleDescription(role, rs.getRoles().get(role.substring(1)).getDescr(),
+												rs.getRoles().get(role.substring(1)).getVnRoles(),
+												rs.getRoles().get(role.substring(1)).getFnRoles());
+									}
+								}
+
+							}
+							for (int j = 0; j < tokens.length; j++) {
+								if (tokens[j].equals(verbToken)) {
+									tokens[j] = srlToken;
+								}
+							}
+						}
+
+					}
+				}
 			} else {
-				logger.error("ParseGraph object expected but not provided.");
-				throw new IllegalArgumentException("ParseGraph expected but not provided.");
+
 			}
+
+			prePipeData.setTokens(tokens);
 
 		} catch (MissingDataException e) {
 			logger.error("No graph to process, aborting ...", e);
@@ -125,6 +202,38 @@ public class SRLabeler implements IPipelineStage {
 
 	}
 
+	private List<Token[]> getInstructionTokens(Token[] tokens) {
+		List<Token[]> result = new ArrayList<>();
+		int instructionNumber = 0;
+
+		boolean foundToken = false;
+		do {
+			foundToken = false;
+			List<Token> instructionTokens = new ArrayList<>();
+			for (int i = 0; i < tokens.length; i++) {
+				if (tokens[i].getInstructionNumber() == instructionNumber) {
+					instructionTokens.add(tokens[i]);
+
+				}
+			}
+			if (!instructionTokens.isEmpty()) {
+				instructionTokens.sort(new Comparator<Token>() {
+
+					@Override
+					public int compare(Token o1, Token o2) {
+						// TODO Auto-generated method stub
+						return Integer.compare(o1.getPosition(), o2.getPosition());
+					}
+				});
+				result.add(instructionTokens.toArray(new Token[instructionTokens.size()]));
+				foundToken = true;
+			}
+
+			instructionNumber++;
+		} while (foundToken);
+		return result;
+	}
+
 	/**
 	 * This method parses the specified tokens with SENNA and returns the
 	 * contained words associated with their srl Tags
@@ -136,6 +245,7 @@ public class SRLabeler implements IPipelineStage {
 	 * @throws URISyntaxException
 	 * @throws InterruptedException
 	 */
+	@Deprecated
 	public List<List<WordSennaResult>> parse(List<String[]> tokens) throws IOException, URISyntaxException, InterruptedException {
 		List<List<WordSennaResult>> result = new ArrayList<List<WordSennaResult>>();
 
@@ -158,6 +268,40 @@ public class SRLabeler implements IPipelineStage {
 			result.add(senna.parse(inputTmpFile));
 		}
 		return result;
+	}
+
+	public List<List<WordSennaResult>> parseWithTokens(List<Token[]> tokens) throws IOException, URISyntaxException, InterruptedException {
+		List<List<WordSennaResult>> result = new ArrayList<List<WordSennaResult>>();
+
+		if (parsePerInstruction) {
+			logger.info("parsing SRL for each instruction independently");
+			for (Token[] instruction : tokens) {
+				String input = generateInstructionInputFromTokens(instruction);
+				File inputTmpFile = writeToTempFile(input);
+				result.add(senna.parse(inputTmpFile));
+			}
+		} else {
+			logger.info("parsing SRL without instructions");
+			String input = "";
+			for (Token[] inst : tokens) {
+				for (int i = 0; i < inst.length; i++) {
+					input += inst[i] + " ";
+				}
+			}
+			File inputTmpFile = writeToTempFile(input);
+
+			result.add(senna.parse(inputTmpFile));
+		}
+		return result;
+	}
+
+	private String generateInstructionInputFromTokens(Token[] tokens) {
+		String resultString = "";
+		for (Token token : tokens) {
+			resultString += token.getWord() + " ";
+		}
+
+		return resultString;
 	}
 
 	private void putResultIntoGraph(List<List<WordSennaResult>> result, ParseGraph pGraph) {
@@ -186,7 +330,7 @@ public class SRLabeler implements IPipelineStage {
 		for (List<WordSennaResult> instruction : result) {
 
 			// get verb representing nodes
-			List<WordSennaResult> verbTokens = getVerbTokensOfInstruction(instruction);
+			List<WordSennaResult> verbTokens = getVerbResultsOfInstruction(instruction);
 			INode[] verbNodes = getVerbNodesOfInstruction(instruction, pGraph, current, verbTokens);
 
 			// get argument numbers per Verb
@@ -357,7 +501,7 @@ public class SRLabeler implements IPipelineStage {
 		return verbNodes;
 	}
 
-	private List<WordSennaResult> getVerbTokensOfInstruction(List<WordSennaResult> instruction) {
+	private List<WordSennaResult> getVerbResultsOfInstruction(List<WordSennaResult> instruction) {
 		List<WordSennaResult> verbs = new ArrayList<WordSennaResult>();
 		for (WordSennaResult token : instruction) {
 			if (!token.getAnalysisResults()[0].equals("-") && isSingleOrBeginning(token.getAnalysisResults()[1])) {

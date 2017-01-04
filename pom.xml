@@ -34,12 +34,6 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>edu.kit.ipd.parse</groupId>
-			<artifactId>luna</artifactId>
-			<classifier>javadoc</classifier>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.kohsuke.metainf-services</groupId>
 			<artifactId>metainf-services</artifactId>
 			<optional>true</optional>
@@ -53,5 +47,10 @@
 			<artifactId>senna-wrapper</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>edu.kit.ipd.parse</groupId>
+			<artifactId>luna</artifactId>
+			<version>0.2.5-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 </project>
