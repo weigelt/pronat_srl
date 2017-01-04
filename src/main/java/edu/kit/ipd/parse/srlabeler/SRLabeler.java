@@ -5,13 +5,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Properties;
 import java.util.Set;
 
@@ -25,12 +23,7 @@ import edu.kit.ipd.parse.luna.data.PipelineDataCastException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
 import edu.kit.ipd.parse.luna.data.token.SRLToken;
 import edu.kit.ipd.parse.luna.data.token.Token;
-import edu.kit.ipd.parse.luna.graph.IArc;
-import edu.kit.ipd.parse.luna.graph.IArcType;
-import edu.kit.ipd.parse.luna.graph.INode;
 import edu.kit.ipd.parse.luna.graph.Pair;
-import edu.kit.ipd.parse.luna.graph.ParseArc;
-import edu.kit.ipd.parse.luna.graph.ParseGraph;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.luna.tools.ConfigManager;
@@ -44,7 +37,8 @@ import edu.kit.ipd.parse.srlabeler.propbank.RolesetConfidence;
  * This class represents a {@link IPipelineStage} to annotate the previously
  * processed input sequences with their semantic roles.
  * 
- * @author Tobias Hey
+ * @author Tobias Hey - (04.01.2017) updated to fit new framework (passing
+ *         SRLToken)
  *
  */
 @MetaInfServices(IPipelineStage.class)
@@ -64,9 +58,9 @@ public class SRLabeler implements IPipelineStage {
 
 	private Senna senna;
 
-	private static final String NEXT_ARCTYPE_NAME = "relation";
-	private static final String TOKEN_WORD_VALUE_NAME = "value";
-	private static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
+	public static final String NEXT_ARCTYPE_NAME = "relation";
+	public static final String TOKEN_WORD_VALUE_NAME = "value";
+	public static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
 	public static final String SRL_ARCTYPE_NAME = "srl";
 	public static final String ROLE_VALUE_NAME = "role";
 	public static final String CORRESPONDING_VERB = "correspondingVerb";
@@ -101,76 +95,42 @@ public class SRLabeler implements IPipelineStage {
 
 		try {
 			Token[] tokens = prePipeData.getTokens();
-			List<Token[]> instructionTokens = getInstructionTokens(tokens);
-			List<List<WordSennaResult>> result = parseWithTokens(instructionTokens);
-			if (parsePerInstruction) {
-				if (instructionTokens.size() == result.size()) {
+			if (tokens.length > 0) {
+
+				List<Token[]> instructionTokens = getInstructionTokens(tokens);
+
+				List<List<WordSennaResult>> result = parseWithTokens(instructionTokens);
+
+				if ((parsePerInstruction && instructionTokens.size() == result.size()) || (!parsePerInstruction && !result.isEmpty())) {
+
 					Iterator<Token[]> tokenIt = instructionTokens.iterator();
 					Iterator<List<WordSennaResult>> resultIt = result.iterator();
 					while (resultIt.hasNext()) {
-						List<WordSennaResult> instructionResult = resultIt.next();
-						Token[] instruction = tokenIt.next();
-						List<Pair<String, Token>> verbTokens = new ArrayList<>();
 
-						int index = 0;
-						for (WordSennaResult wordSennaResult : instructionResult) {
-							if (!wordSennaResult.getAnalysisResults()[0].equals("-")
-									&& isSingleOrBeginning(wordSennaResult.getAnalysisResults()[1])) {
-								verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction[index]));
-							}
-							index++;
+						List<WordSennaResult> instructionResult = resultIt.next();
+
+						Token[] instruction;
+
+						if (parsePerInstruction) {
+
+							// process each instruction independently
+							instruction = tokenIt.next();
+						} else {
+							instruction = tokens;
 						}
+						int index;
+						List<Pair<String, Token>> verbTokens = extractVerbTokens(instructionResult, instruction);
+
+						// for each recognized Verb
 						for (int i = 0; i < verbTokens.size(); i++) {
 
-							HashMap<String, List<Token>> correspondingTokens = new HashMap<>();
-							index = 0;
-							for (WordSennaResult wordSennaResult : instructionResult) {
-								if (!wordSennaResult.getAnalysisResults()[i + 1].equals("O")
-										&& !wordSennaResult.getAnalysisResults()[i + 1].equals("-")) {
-									String role = wordSennaResult.getAnalysisResults()[i + 1].substring(2);
-									if (correspondingTokens.containsKey(role)) {
-										correspondingTokens.get(role).add(instruction[index]);
-									} else {
-										List<Token> list = new ArrayList<Token>();
-										list.add(instruction[index]);
-										correspondingTokens.put(role, list);
-									}
-
-								}
-								index++;
-							}
-							Set<String> totalRoleNumbers = new HashSet<>();
-							for (String role : correspondingTokens.keySet()) {
-								if (role.startsWith("A")) {
-									totalRoleNumbers.add(role.substring(1));
-								}
-							}
+							HashMap<String, List<Token>> roleTokens = extractRoleTokens(instructionResult, instruction, i);
 							Token verbToken = verbTokens.get(i).getRight();
 							String verb = verbTokens.get(i).getLeft();
-							ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, totalRoleNumbers);
-							SRLToken srlToken = new SRLToken(verbToken);
-							if (!rsConfidences.isEmpty()) {
-								RolesetConfidence rsC = rsConfidences.get(0);
-								Roleset rs = rsC.getRoleset();
-								srlToken.setCorrespondingVerb(verb);
-								srlToken.setRoleConfidence(rsC.getConfidence());
-								srlToken.setPbRolesetDescr(rs.getDescr());
-								srlToken.setPbRolesetID(rs.getId());
-								srlToken.setVnFrames(rs.getVnFrames());
-								srlToken.setFnFrames(rs.getFnFrames());
-								srlToken.setEventTypes(rs.getEventTypes());
-								for (String role : correspondingTokens.keySet()) {
-									for (Token token : correspondingTokens.get(role)) {
-										srlToken.addDependendToken(role, token);
-									}
-									if (role.startsWith("A") && rs.getRoles().containsKey(role.substring(1))) {
-										srlToken.addRoleDescription(role, rs.getRoles().get(role.substring(1)).getDescr(),
-												rs.getRoles().get(role.substring(1)).getVnRoles(),
-												rs.getRoles().get(role.substring(1)).getFnRoles());
-									}
-								}
 
-							}
+							SRLToken srlToken = createSRLToken(roleTokens, verbToken, verb);
+
+							// replace token with srl Token
 							for (int j = 0; j < tokens.length; j++) {
 								if (tokens[j].equals(verbToken)) {
 									tokens[j] = srlToken;
@@ -180,8 +140,6 @@ public class SRLabeler implements IPipelineStage {
 
 					}
 				}
-			} else {
-
 			}
 
 			prePipeData.setTokens(tokens);
@@ -200,6 +158,105 @@ public class SRLabeler implements IPipelineStage {
 			throw new PipelineStageException(e);
 		}
 
+	}
+
+	public List<List<WordSennaResult>> parseWithTokens(List<Token[]> tokens) throws IOException, URISyntaxException, InterruptedException {
+		List<List<WordSennaResult>> result = new ArrayList<List<WordSennaResult>>();
+
+		if (parsePerInstruction) {
+			logger.info("parsing SRL for each instruction independently");
+			for (Token[] instruction : tokens) {
+				String input = generateInstructionInputFromTokens(instruction);
+				File inputTmpFile = writeToTempFile(input);
+				result.add(senna.parse(inputTmpFile));
+			}
+		} else {
+			logger.info("parsing SRL without instructions");
+			String input = "";
+			for (Token[] inst : tokens) {
+				for (int i = 0; i < inst.length; i++) {
+					input += inst[i].getWord() + " ";
+				}
+			}
+			File inputTmpFile = writeToTempFile(input);
+
+			result.add(senna.parse(inputTmpFile));
+		}
+		return result;
+	}
+
+	private SRLToken createSRLToken(HashMap<String, List<Token>> roleTokens, Token verbToken, String verb) {
+		// calculate occurring role numbers
+		Set<String> totalRoleNumbers = new HashSet<>();
+		for (String role : roleTokens.keySet()) {
+			if (role.startsWith("A")) {
+				totalRoleNumbers.add(role.substring(1));
+			}
+		}
+
+		// get information from pb, vn and fn
+		ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, totalRoleNumbers);
+
+		// create srlToken with calculated information
+		SRLToken srlToken = new SRLToken(verbToken);
+		if (!rsConfidences.isEmpty()) {
+			RolesetConfidence rsC = rsConfidences.get(0);
+			Roleset rs = rsC.getRoleset();
+			srlToken.setCorrespondingVerb(verb);
+			srlToken.setRoleConfidence(rsC.getConfidence());
+			srlToken.setPbRolesetDescr(rs.getDescr());
+			srlToken.setPbRolesetID(rs.getId());
+			srlToken.setVnFrames(rs.getVnFrames());
+			srlToken.setFnFrames(rs.getFnFrames());
+			srlToken.setEventTypes(rs.getEventTypes());
+			for (String role : roleTokens.keySet()) {
+				for (Token token : roleTokens.get(role)) {
+					srlToken.addDependendToken(role, token);
+				}
+				if (role.startsWith("A") && rs.getRoles().containsKey(role.substring(1))) {
+					srlToken.addRoleDescription(role, rs.getRoles().get(role.substring(1)).getDescr(),
+							rs.getRoles().get(role.substring(1)).getVnRoles(), rs.getRoles().get(role.substring(1)).getFnRoles());
+				}
+			}
+
+		}
+		return srlToken;
+	}
+
+	private HashMap<String, List<Token>> extractRoleTokens(List<WordSennaResult> instructionResult, Token[] instruction, int i) {
+		int index;
+		HashMap<String, List<Token>> correspondingTokens = new HashMap<>();
+		index = 0;
+		// search Tokens belonging to semantic roles
+		for (WordSennaResult wordSennaResult : instructionResult) {
+			if (!wordSennaResult.getAnalysisResults()[i + 1].equals("O") && !wordSennaResult.getAnalysisResults()[i + 1].equals("-")) {
+				String role = wordSennaResult.getAnalysisResults()[i + 1].substring(2);
+				if (correspondingTokens.containsKey(role)) {
+					correspondingTokens.get(role).add(instruction[index]);
+				} else {
+					List<Token> list = new ArrayList<Token>();
+					list.add(instruction[index]);
+					correspondingTokens.put(role, list);
+				}
+
+			}
+			index++;
+		}
+		return correspondingTokens;
+	}
+
+	private List<Pair<String, Token>> extractVerbTokens(List<WordSennaResult> instructionResult, Token[] instruction) {
+		List<Pair<String, Token>> verbTokens = new ArrayList<>();
+
+		// search recognized verbs
+		int index = 0;
+		for (WordSennaResult wordSennaResult : instructionResult) {
+			if (!wordSennaResult.getAnalysisResults()[0].equals("-") && isSingleOrBeginning(wordSennaResult.getAnalysisResults()[1])) {
+				verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction[index]));
+			}
+			index++;
+		}
+		return verbTokens;
 	}
 
 	private List<Token[]> getInstructionTokens(Token[] tokens) {
@@ -234,67 +291,6 @@ public class SRLabeler implements IPipelineStage {
 		return result;
 	}
 
-	/**
-	 * This method parses the specified tokens with SENNA and returns the
-	 * contained words associated with their srl Tags
-	 * 
-	 * @param tokens
-	 *            The tokens to process
-	 * @return the words and their srlTags as {@link WordSennaResult}
-	 * @throws IOException
-	 * @throws URISyntaxException
-	 * @throws InterruptedException
-	 */
-	@Deprecated
-	public List<List<WordSennaResult>> parse(List<String[]> tokens) throws IOException, URISyntaxException, InterruptedException {
-		List<List<WordSennaResult>> result = new ArrayList<List<WordSennaResult>>();
-
-		if (parsePerInstruction) {
-			logger.info("parsing SRL for each instruction independently");
-			List<String> inputList = generateInstructionInput(tokens);
-
-			for (String input : inputList) {
-				File inputTmpFile = writeToTempFile(input);
-				result.add(senna.parse(inputTmpFile));
-
-			}
-		} else {
-			String input = "";
-			for (String[] t : tokens) {
-				input += t[0] + " ";
-			}
-			File inputTmpFile = writeToTempFile(input);
-			logger.info("parsing SRL without instructions");
-			result.add(senna.parse(inputTmpFile));
-		}
-		return result;
-	}
-
-	public List<List<WordSennaResult>> parseWithTokens(List<Token[]> tokens) throws IOException, URISyntaxException, InterruptedException {
-		List<List<WordSennaResult>> result = new ArrayList<List<WordSennaResult>>();
-
-		if (parsePerInstruction) {
-			logger.info("parsing SRL for each instruction independently");
-			for (Token[] instruction : tokens) {
-				String input = generateInstructionInputFromTokens(instruction);
-				File inputTmpFile = writeToTempFile(input);
-				result.add(senna.parse(inputTmpFile));
-			}
-		} else {
-			logger.info("parsing SRL without instructions");
-			String input = "";
-			for (Token[] inst : tokens) {
-				for (int i = 0; i < inst.length; i++) {
-					input += inst[i] + " ";
-				}
-			}
-			File inputTmpFile = writeToTempFile(input);
-
-			result.add(senna.parse(inputTmpFile));
-		}
-		return result;
-	}
-
 	private String generateInstructionInputFromTokens(Token[] tokens) {
 		String resultString = "";
 		for (Token token : tokens) {
@@ -304,256 +300,8 @@ public class SRLabeler implements IPipelineStage {
 		return resultString;
 	}
 
-	private void putResultIntoGraph(List<List<WordSennaResult>> result, ParseGraph pGraph) {
-
-		//Prepare arc type
-		IArcType arcType;
-		if (!pGraph.hasArcType(SRL_ARCTYPE_NAME)) {
-			arcType = pGraph.createArcType(SRL_ARCTYPE_NAME);
-			arcType.addAttributeToType("String", ROLE_VALUE_NAME);
-			arcType.addAttributeToType("String", IOBES);
-			arcType.addAttributeToType("String", PROPBANK_ROLE_DESCRIPTION);
-			arcType.addAttributeToType("String", VN_ROLE_NAME);
-			arcType.addAttributeToType("String", FN_ROLE_NAME);
-			arcType.addAttributeToType("Double", ROLE_CONFIDENCE_NAME);
-			arcType.addAttributeToType("String", CORRESPONDING_VERB);
-			arcType.addAttributeToType("String", PROP_BANK_ROLESET_ID);
-			arcType.addAttributeToType("String", PROP_BANK_ROLESET_DESCR);
-			arcType.addAttributeToType("String", VERB_NET_FRAMES);
-			arcType.addAttributeToType("String", FRAME_NET_FRAMES);
-			arcType.addAttributeToType("String", EVENT_TYPES);
-
-		} else {
-			arcType = pGraph.getArcType(SRL_ARCTYPE_NAME);
-		}
-		INode current = pGraph.getFirstUtteranceNode();
-		for (List<WordSennaResult> instruction : result) {
-
-			// get verb representing nodes
-			List<WordSennaResult> verbTokens = getVerbResultsOfInstruction(instruction);
-			INode[] verbNodes = getVerbNodesOfInstruction(instruction, pGraph, current, verbTokens);
-
-			// get argument numbers per Verb
-
-			List<Set<String>> totalArgNumbersPerVerb = new ArrayList<Set<String>>(verbTokens.size());
-
-			for (int i = 0; i < verbTokens.size(); i++) {
-				Set<String> argNumbers = new HashSet<String>();
-				for (WordSennaResult token : instruction) {
-					String role = token.getAnalysisResults()[i + 1];
-					if (role.contains("-A") && role.substring(3).matches("\\d")) {
-
-						argNumbers.add(role.substring(3));
-
-					}
-				}
-				totalArgNumbersPerVerb.add(argNumbers);
-			}
-
-			//iterate over token in instruction
-			ListIterator<WordSennaResult> iterator = instruction.listIterator();
-			while (iterator.hasNext()) {
-				WordSennaResult token = iterator.next();
-				INode nodeForToken = getFirstMatchingNode(current, token, pGraph);
-
-				// treat each verb separately
-				for (int i = 0; i < verbNodes.length; i++) {
-
-					// case token is Single semantic role
-					if (token.getAnalysisResults()[i + 1].startsWith("S-")) {
-						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "S", verbTokens, token, i, totalArgNumbersPerVerb.get(i));
-
-						// case token is beginning of semantic role sequence
-					} else if (token.getAnalysisResults()[i + 1].startsWith("B-")) {
-						createSRLArc(verbNodes[i], nodeForToken, arcType, pGraph, "B", verbTokens, token, i, totalArgNumbersPerVerb.get(i));
-
-						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i, totalArgNumbersPerVerb.get(i));
-
-						// case token is inside semantic role sequence
-					} else if (token.getAnalysisResults()[i + 1].startsWith("I-")) {
-						addArcToNextNotOutsideNode(pGraph, arcType, verbTokens, iterator, nodeForToken, i, totalArgNumbersPerVerb.get(i));
-					}
-				}
-				INode next = getNextNode(nodeForToken, pGraph);
-				if (next != null) {
-					current = next;
-				} else {
-					current = nodeForToken;
-				}
-			}
-
-		}
-
-	}
-
-	private void addArcToNextNotOutsideNode(ParseGraph pGraph, IArcType arcType, List<WordSennaResult> verbTokens,
-			ListIterator<WordSennaResult> iterator, INode nodeForToken, int i, Set<String> argNumbers) {
-		// add arc to next node in sequence
-		if (iterator.hasNext()) {
-			WordSennaResult next = iterator.next();
-			INode nextNode = getFirstMatchingNode(getNextNode(nodeForToken, pGraph), next, pGraph);
-
-			// next node is inside sequence
-			if (next.getAnalysisResults()[i + 1].startsWith("I-")) {
-				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "I", verbTokens, next, i, argNumbers);
-
-				// next node is outside sequence -> search first following node which is not outside
-			} else if (next.getAnalysisResults()[i + 1].startsWith("O")) {
-				while (iterator.hasNext()) {
-					WordSennaResult further = iterator.next();
-					INode furtherNode = getFirstMatchingNode(nextNode, further, pGraph);
-					if (further.getAnalysisResults()[i + 1].startsWith("I-")) {
-						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "I", verbTokens, further, i, argNumbers);
-
-						break;
-					} else if (further.getAnalysisResults()[i + 1].startsWith("E-")) {
-						createSRLArc(nodeForToken, furtherNode, arcType, pGraph, "E", verbTokens, further, i, argNumbers);
-
-						break;
-					}
-
-				}
-				// next node is end of sequence
-			} else if (next.getAnalysisResults()[i + 1].startsWith("E-")) {
-				createSRLArc(nodeForToken, nextNode, arcType, pGraph, "E", verbTokens, next, i, argNumbers);
-
-			}
-
-			// reset iterator
-			iterator.previous();
-		}
-	}
-
-	private void createSRLArc(INode from, INode to, IArcType type, ParseGraph pGraph, String iobes, List<WordSennaResult> verbTokens,
-			WordSennaResult token, int verbNumber, Set<String> totalArgNumbers) {
-		ParseArc arc = pGraph.createArc(from, to, type);
-		String role = token.getAnalysisResults()[verbNumber + 1].substring(2);
-		arc.setAttributeValue(ROLE_VALUE_NAME, role);
-		arc.setAttributeValue(IOBES, iobes);
-		//TODO Lemmatize Verb
-		String verb = verbTokens.get(verbNumber).getAnalysisResults()[0];
-		arc.setAttributeValue(CORRESPONDING_VERB, verb);
-		String roleNumber = role.substring(1);
-		if (!roleNumber.matches("\\d")) {
-			roleNumber = "";
-		}
-		ArrayList<RolesetConfidence> rsConfidences = pbMapper.getPossibleRolesets(verb, totalArgNumbers);
-
-		if (!rsConfidences.isEmpty()) {
-			RolesetConfidence rsC = rsConfidences.get(0);
-			Roleset rs = rsC.getRoleset();
-			if (!(roleNumber.equals(""))) {
-				arc.setAttributeValue(PROPBANK_ROLE_DESCRIPTION, rs.getRoles().get(roleNumber).getDescr());
-				arc.setAttributeValue(VN_ROLE_NAME, Arrays.toString(rs.getRoles().get(roleNumber).getVnRoles()));
-				arc.setAttributeValue(FN_ROLE_NAME, Arrays.toString(rs.getRoles().get(roleNumber).getFnRoles()));
-			}
-			arc.setAttributeValue(ROLE_CONFIDENCE_NAME, rsC.getConfidence());
-			arc.setAttributeValue(PROP_BANK_ROLESET_DESCR, rs.getDescr());
-			arc.setAttributeValue(EVENT_TYPES, Arrays.toString(rs.getEventTypes()));
-			arc.setAttributeValue(FRAME_NET_FRAMES, Arrays.toString(rs.getFnFrames()));
-			arc.setAttributeValue(PROP_BANK_ROLESET_ID, rs.getId());
-			arc.setAttributeValue(VERB_NET_FRAMES, Arrays.toString(rs.getVnFrames()));
-		}
-	}
-
 	private boolean isSingleOrBeginning(String srl) {
 		return (srl.startsWith("S-") || srl.startsWith("B-"));
-	}
-
-	private INode getNextNode(INode current, ParseGraph pGraph) {
-		IArcType arcType = pGraph.getArcType(NEXT_ARCTYPE_NAME);
-		Set<? extends IArc> outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
-		if (!outgoingNextArcs.isEmpty()) {
-			return outgoingNextArcs.toArray(new IArc[outgoingNextArcs.size()])[0].getTargetNode();
-		} else {
-			return null;
-		}
-	}
-
-	private INode getFirstMatchingNode(INode beginning, WordSennaResult token, ParseGraph pGraph) {
-		INode current = beginning;
-		IArcType arcType = pGraph.getArcType(NEXT_ARCTYPE_NAME);
-		Set<? extends IArc> outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
-		if (current.getAttributeValue(TOKEN_WORD_VALUE_NAME).equals(token.getWord())) {
-			return current;
-		} else {
-			while (!outgoingNextArcs.isEmpty()) {
-				current = getNextNode(current, pGraph);
-				if (current.getAttributeValue(TOKEN_WORD_VALUE_NAME).equals(token.getWord())) {
-					return current;
-				}
-				outgoingNextArcs = current.getOutgoingArcsOfType(arcType);
-			}
-		}
-		return null;
-
-	}
-
-	private INode[] getVerbNodesOfInstruction(List<WordSennaResult> instruction, ParseGraph pGraph, INode current,
-			List<WordSennaResult> verbTokens) {
-		int numberOfVerbs = verbTokens.size();
-		INode[] verbNodes = new INode[numberOfVerbs];
-		INode beginning = current;
-		for (int i = 0; i < numberOfVerbs; i++) {
-			verbNodes[i] = getFirstMatchingNode(beginning, verbTokens.get(i), pGraph);
-			beginning = verbNodes[i];
-		}
-		return verbNodes;
-	}
-
-	private List<WordSennaResult> getVerbResultsOfInstruction(List<WordSennaResult> instruction) {
-		List<WordSennaResult> verbs = new ArrayList<WordSennaResult>();
-		for (WordSennaResult token : instruction) {
-			if (!token.getAnalysisResults()[0].equals("-") && isSingleOrBeginning(token.getAnalysisResults()[1])) {
-				verbs.add(token);
-			}
-		}
-		return verbs;
-	}
-
-	private List<String> generateInstructionInput(List<String[]> tokens) {
-		List<String> inputList = new ArrayList<String>();
-		int instructionNumber = 0;
-		String instruction = "";
-		for (String[] t : tokens) {
-
-			if (Integer.parseInt(t[1]) > instructionNumber) {
-				inputList.add(instruction);
-				instruction = "";
-			}
-			instruction += t[0] + " ";
-			instructionNumber = Integer.parseInt(t[1]);
-		}
-		inputList.add(instruction);
-		return inputList;
-	}
-
-	private List<String[]> generateInputList(ParseGraph pGraph)
-			throws PipelineStageException, IOException, URISyntaxException, InterruptedException {
-		List<String[]> input = new ArrayList<>();
-		INode first = pGraph.getFirstUtteranceNode();
-		if (first != null) {
-			INode act = first;
-
-			do {
-				if (act.getAttributeNames().contains(TOKEN_WORD_VALUE_NAME)
-						&& act.getAttributeNames().contains(INSTRUCTION_NUMBER_VALUE_NAME)) {
-					String[] token = new String[] { act.getAttributeValue(TOKEN_WORD_VALUE_NAME).toString(),
-							act.getAttributeValue(INSTRUCTION_NUMBER_VALUE_NAME).toString() };
-					input.add(token);
-					act = getNextNode(act, pGraph);
-
-				} else {
-					logger.error("Token node does not contain words or instructionNumber");
-					throw new PipelineStageException("Token node does not contain words or instructionNumber");
-				}
-			} while (act != null);
-
-		} else {
-			logger.error("Graph contains no first utterance node");
-			throw new PipelineStageException("Graph contains no first utterance node");
-		}
-		return input;
 	}
 
 	/**
