@@ -194,7 +194,7 @@ public class SRLabeler implements IPipelineStage {
 		// calculate occurring role numbers
 		Set<String> totalRoleNumbers = new HashSet<>();
 		for (String role : roleTokens.keySet()) {
-			if (role.startsWith("A")) {
+			if (role.matches("[A]\\d")) {
 				totalRoleNumbers.add(role.substring(1));
 			}
 		}
