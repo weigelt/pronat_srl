@@ -54,12 +54,22 @@ public final class PropBankMapper {
 						argFNRoles.set(num, tokens[i + 3].split("\\|"));
 					}
 					Roleset rs = new Roleset(id, name, lemma, vnFrames, fnFrames, eventTypes, argDescr, argVNRoles, argFNRoles);
-					if (ROLESETS.containsKey(rs.getLemma())) {
-						ROLESETS.get(rs.getLemma()).add(rs);
+					if (ROLESETS.containsKey(id.substring(0, id.indexOf(".")))) {
+						List<Roleset> rSets = ROLESETS.get(id.substring(0, id.indexOf(".")));
+						rSets.add(rs);
+						Collections.sort(rSets, new Comparator<Roleset>() {
+
+							@Override
+							public int compare(Roleset o1, Roleset o2) {
+								Integer r1 = Integer.parseInt(o1.getId().substring(o1.getId().indexOf(".") + 1, o1.getId().length()));
+								Integer r2 = Integer.parseInt(o2.getId().substring(o2.getId().indexOf(".") + 1, o2.getId().length()));
+								return Integer.compare(r1, r2);
+							}
+						});
 					} else {
 						List<Roleset> rsList = new ArrayList<Roleset>();
 						rsList.add(rs);
-						ROLESETS.put(rs.getLemma(), rsList);
+						ROLESETS.put(id.substring(0, id.indexOf(".")), rsList);
 					}
 				}
 			}
@@ -146,6 +156,9 @@ public final class PropBankMapper {
 				return 0;
 			}
 		});
+		if (result.isEmpty() && rolesets != null) {
+			result.add(new RolesetConfidence(rolesets.get(0), 0, 0));
+		}
 		return result;
 	}
 

@@ -32,6 +32,10 @@ import edu.kit.ipd.parse.senna_wrapper.WordSennaResult;
 import edu.kit.ipd.parse.srlabeler.propbank.PropBankMapper;
 import edu.kit.ipd.parse.srlabeler.propbank.Roleset;
 import edu.kit.ipd.parse.srlabeler.propbank.RolesetConfidence;
+import net.sf.extjwnl.JWNLException;
+import net.sf.extjwnl.data.IndexWord;
+import net.sf.extjwnl.data.POS;
+import net.sf.extjwnl.dictionary.Dictionary;
 
 /**
  * This class represents a {@link IPipelineStage} to annotate the previously
@@ -58,6 +62,8 @@ public class SRLabeler implements IPipelineStage {
 
 	private Senna senna;
 
+	private Dictionary wordNetDictionary;
+
 	public static final String NEXT_ARCTYPE_NAME = "relation";
 	public static final String TOKEN_WORD_VALUE_NAME = "value";
 	public static final String INSTRUCTION_NUMBER_VALUE_NAME = "instructionNumber";
@@ -81,6 +87,11 @@ public class SRLabeler implements IPipelineStage {
 		parsePerInstruction = Boolean.parseBoolean(props.getProperty("PARSE_PER_INSTRUCTION"));
 		pbMapper = new PropBankMapper();
 		senna = new Senna(new String[] { "-usrtokens", "-srl" });
+		try {
+			wordNetDictionary = Dictionary.getDefaultResourceInstance();
+		} catch (JWNLException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -197,6 +208,15 @@ public class SRLabeler implements IPipelineStage {
 			if (role.matches("[A]\\d")) {
 				totalRoleNumbers.add(role.substring(1));
 			}
+		}
+
+		try {
+			IndexWord iw = wordNetDictionary.lookupIndexWord(POS.VERB, verb.toLowerCase());
+			if (iw != null) {
+				verb = iw.getLemma();
+			}
+		} catch (JWNLException e) {
+			e.printStackTrace();
 		}
 
 		// get information from pb, vn and fn
