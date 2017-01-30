@@ -181,10 +181,16 @@ public class SRLabeler implements IPipelineStage {
 
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
-			for (List<Token> instruction : tokens) {
-				String input = generateInstructionInputFromTokens(instruction);
-				File inputTmpFile = writeToTempFile(input);
-				result.add(senna.parse(inputTmpFile));
+			File inputTmpFile = writeBatchToTempFile(tokens);
+			List<WordSennaResult> results = senna.parse(inputTmpFile);
+			List<WordSennaResult> tmpList = new ArrayList<>();
+			for (WordSennaResult wordSennaResult : results) {
+				if (wordSennaResult.getWord().equals(".")) {
+					result.add(tmpList);
+					tmpList = new ArrayList<>();
+				} else {
+					tmpList.add(wordSennaResult);
+				}
 			}
 		} else {
 			logger.info("parsing SRL without instructions");
@@ -236,7 +242,12 @@ public class SRLabeler implements IPipelineStage {
 			srlToken.setEventTypes(rs.getEventTypes());
 			for (String role : roleTokens.keySet()) {
 				for (Token token : roleTokens.get(role)) {
-					srlToken.addDependentToken(role, token);
+					if (role.equals("V")) {
+						srlToken.addDependentToken(role, srlToken);
+					} else {
+						srlToken.addDependentToken(role, token);
+					}
+
 				}
 				if (role.startsWith("A") && rs.getRoles().containsKey(role.substring(1))) {
 					srlToken.addRoleDescription(role, rs.getRoles().get(role.substring(1)).getDescr(),
@@ -345,6 +356,20 @@ public class SRLabeler implements IPipelineStage {
 		writer.close();
 		return tempFile;
 
+	}
+
+	private File writeBatchToTempFile(List<List<Token>> instructions) throws IOException {
+		PrintWriter writer;
+		final File tempFile = File.createTempFile("input", "txt");
+		writer = new PrintWriter(tempFile);
+		for (final List<Token> instruction : instructions) {
+			for (final Token inst : instruction) {
+				writer.print(inst.getWord() + " ");
+			}
+			writer.println(". ");
+		}
+		writer.close();
+		return tempFile;
 	}
 
 	@Override

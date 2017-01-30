@@ -18,6 +18,7 @@ import org.xml.sax.SAXException;
 
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
+import edu.kit.ipd.parse.luna.tools.StringToHypothesis;
 import edu.kit.ipd.parse.shallownlp.ShallowNLP;
 
 public class SRLabelerTest {
@@ -66,72 +67,70 @@ public class SRLabelerTest {
 	@Test
 	public void oneTwo() {
 		ppd = new PrePipelineData();
-		input = hm.get("1.2");
-		ppd.setTranscription(input);
+		String input = hm.get("1.2");
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void twoThree() {
 		ppd = new PrePipelineData();
-		input = hm.get("2.3");
-		ppd.setTranscription(input);
+		String input = hm.get("2.3");
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void threeTwo() {
 		ppd = new PrePipelineData();
-		input = hm.get("3.2");
-		ppd.setTranscription(input);
+		String input = hm.get("3.2");
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void doubleWordTest() {
 		ppd = new PrePipelineData();
-		input = "put the green green cup into the dishwasher";
-		ppd.setTranscription(input);
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis("put the green green cup into the dishwasher"));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void itsTest() {
 		ppd = new PrePipelineData();
-		input = "Armar put the green cup on the table it's next to the popcorn";
-		ppd.setTranscription(input);
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis("Armar put the green cup on the table it's next to the popcorn"));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void fourOne() {
 		ppd = new PrePipelineData();
-		input = hm.get("4.1");
-		ppd.setTranscription(input);
+		String input = hm.get("4.1");
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void fiveThree() {
 		ppd = new PrePipelineData();
-		input = hm.get("5.3");
-		ppd.setTranscription(input);
+		String input = hm.get("5.3");
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void ifFiveThree() {
 		ppd = new PrePipelineData();
-		input = hm.get("if.5.3");
-		ppd.setTranscription(input);
+		String input = hm.get("if.5.3");
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
 	}
 
 	@Test
 	public void ifFourTen() {
 		ppd = new PrePipelineData();
-		input = hm.get("if.4.10");
-		ppd.setTranscription(input);
+		String input = hm.get("if.4.10");
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
 	}
 
