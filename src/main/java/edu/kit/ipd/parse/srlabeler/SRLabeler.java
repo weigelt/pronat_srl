@@ -21,6 +21,7 @@ import edu.kit.ipd.parse.luna.data.AbstractPipelineData;
 import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PipelineDataCastException;
 import edu.kit.ipd.parse.luna.data.PrePipelineData;
+import edu.kit.ipd.parse.luna.data.token.POSTag;
 import edu.kit.ipd.parse.luna.data.token.SRLToken;
 import edu.kit.ipd.parse.luna.data.token.Token;
 import edu.kit.ipd.parse.luna.graph.Pair;
@@ -40,7 +41,7 @@ import net.sf.extjwnl.dictionary.Dictionary;
 /**
  * This class represents a {@link IPipelineStage} to annotate the previously
  * processed input sequences with their semantic roles.
- * 
+ *
  * @author Tobias Hey - (04.01.2017) updated to fit new framework (passing
  *         SRLToken)
  *
@@ -115,7 +116,7 @@ public class SRLabeler implements IPipelineStage {
 
 				List<List<WordSennaResult>> result = parseWithTokens(instructionTokens);
 
-				if ((parsePerInstruction && instructionTokens.size() == result.size()) || (!parsePerInstruction && !result.isEmpty())) {
+				if (parsePerInstruction && instructionTokens.size() == result.size() || !parsePerInstruction && !result.isEmpty()) {
 
 					Iterator<List<Token>> tokenIt = instructionTokens.iterator();
 					Iterator<List<WordSennaResult>> resultIt = result.iterator();
@@ -242,7 +243,7 @@ public class SRLabeler implements IPipelineStage {
 			srlToken.setEventTypes(rs.getEventTypes());
 			for (String role : roleTokens.keySet()) {
 				for (Token token : roleTokens.get(role)) {
-					if (role.equals("V")) {
+					if (role.equals("V") && token.equals(verbToken)) {
 						srlToken.addDependentToken(role, srlToken);
 					} else {
 						srlToken.addDependentToken(role, token);
@@ -288,11 +289,23 @@ public class SRLabeler implements IPipelineStage {
 		int index = 0;
 		for (WordSennaResult wordSennaResult : instructionResult) {
 			if (!wordSennaResult.getAnalysisResults()[0].equals("-") && isSingleOrBeginning(wordSennaResult.getAnalysisResults()[1])) {
-				verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction.get(index)));
+				Token token = instruction.get(index);
+				if (isVerb(token.getPos())) {
+					verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction.get(index)));
+				}
 			}
 			index++;
 		}
 		return verbTokens;
+	}
+
+	private boolean isVerb(POSTag pos) {
+		if (pos.equals(POSTag.VERB) || pos.equals(POSTag.VERB_MODAL) || pos.equals(POSTag.VERB_PARTICIPLE_PAST)
+				|| pos.equals(POSTag.VERB_PARTICIPLE_PRESENT) || pos.equals(POSTag.VERB_PAST_TENSE)
+				|| pos.equals(POSTag.VERB_SINGULAR_PRESENT_NONTHIRD_PERSON) || pos.equals(POSTag.VERB_SINGULAR_PRESENT_THIRD_PERSON)) {
+			return true;
+		}
+		return false;
 	}
 
 	private List<List<Token>> getInstructionTokens(List<Token> tokens) {
@@ -337,13 +350,13 @@ public class SRLabeler implements IPipelineStage {
 	}
 
 	private boolean isSingleOrBeginning(String srl) {
-		return (srl.startsWith("S-") || srl.startsWith("B-"));
+		return srl.startsWith("S-") || srl.startsWith("B-");
 	}
 
 	/**
 	 * This method writes the input text into a text file. The text file is the
 	 * input file for SENNA.
-	 * 
+	 *
 	 * @param text
 	 *            the text to parse
 	 * @throws IOException
