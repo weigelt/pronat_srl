@@ -256,6 +256,8 @@ public class SRLabeler implements IPipelineStage {
 				}
 			}
 
+		} else {
+			srlToken.addDependentToken("V", srlToken);
 		}
 		return srlToken;
 	}
