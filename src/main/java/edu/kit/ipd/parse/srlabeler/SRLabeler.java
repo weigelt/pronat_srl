@@ -257,6 +257,7 @@ public class SRLabeler implements IPipelineStage {
 			}
 
 		} else {
+			srlToken.setCorrespondingVerb(verb);
 			srlToken.addDependentToken("V", srlToken);
 		}
 		return srlToken;
