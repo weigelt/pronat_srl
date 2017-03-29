@@ -269,7 +269,8 @@ public class SRLabeler implements IPipelineStage {
 		index = 0;
 		// search Tokens belonging to semantic roles
 		for (WordSennaResult wordSennaResult : instructionResult) {
-			if (!wordSennaResult.getAnalysisResults()[i + 1].equals("O") && !wordSennaResult.getAnalysisResults()[i + 1].equals("-")) {
+			if (i + 1 < wordSennaResult.getAnalysisResults().length && !wordSennaResult.getAnalysisResults()[i + 1].equals("O")
+					&& !wordSennaResult.getAnalysisResults()[i + 1].equals("-")) {
 				String role = wordSennaResult.getAnalysisResults()[i + 1].substring(2);
 				if (correspondingTokens.containsKey(role)) {
 					correspondingTokens.get(role).add(instruction.get(index));
@@ -291,7 +292,9 @@ public class SRLabeler implements IPipelineStage {
 		// search recognized verbs
 		int index = 0;
 		for (WordSennaResult wordSennaResult : instructionResult) {
-			if (!wordSennaResult.getAnalysisResults()[0].equals("-") && isSingleOrBeginning(wordSennaResult.getAnalysisResults()[1])) {
+
+			if (wordSennaResult.getAnalysisResults().length >= 2 && !wordSennaResult.getAnalysisResults()[0].equals("-")
+					&& isSingleOrBeginning(wordSennaResult.getAnalysisResults()[1])) {
 				Token token = instruction.get(index);
 				if (isVerb(token.getPos())) {
 					verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction.get(index)));
