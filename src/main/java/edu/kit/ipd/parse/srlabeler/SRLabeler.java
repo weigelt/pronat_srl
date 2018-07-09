@@ -82,6 +82,8 @@ public class SRLabeler implements IPipelineStage {
 	public static final String PROP_BANK_ROLESET_ID = "propBankRolesetID";
 	public static final String FN_ROLE_NAME = "fnRole";
 
+	private static final List<String> PUNCTUATION_MARKS = List.of(".", ":", ",", ";", "!", "?");
+
 	@Override
 	public void init() {
 		props = ConfigManager.getConfiguration(getClass());
@@ -116,7 +118,8 @@ public class SRLabeler implements IPipelineStage {
 
 				List<List<WordSennaResult>> result = parseWithTokens(instructionTokens);
 
-				if (parsePerInstruction && instructionTokens.size() == result.size() || !parsePerInstruction && !result.isEmpty()) {
+				if (parsePerInstruction && (instructionTokens.size() == result.size() || containsPunctuation(instructionTokens))
+						|| (!parsePerInstruction && !result.isEmpty())) {
 
 					Iterator<List<Token>> tokenIt = instructionTokens.iterator();
 					Iterator<List<WordSennaResult>> resultIt = result.iterator();
@@ -182,17 +185,30 @@ public class SRLabeler implements IPipelineStage {
 
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
-			File inputTmpFile = writeBatchToTempFile(tokens);
+			List<Integer> addedSeperatorIndices = new ArrayList<>();
+			File inputTmpFile = writeBatchToTempFile(tokens, addedSeperatorIndices);
 			List<WordSennaResult> results = senna.parse(inputTmpFile);
-			List<WordSennaResult> tmpList = new ArrayList<>();
-			for (WordSennaResult wordSennaResult : results) {
-				if (wordSennaResult.getWord().equals(".")) {
-					result.add(tmpList);
-					tmpList = new ArrayList<>();
-				} else {
-					tmpList.add(wordSennaResult);
-				}
+			int countRemoved = 0;
+			for (Integer integer : addedSeperatorIndices) {
+				results.remove(integer.intValue() - countRemoved);
+				countRemoved++;
 			}
+			List<WordSennaResult> tmpList = new ArrayList<>();
+			int offset = 0;
+			for (List<Token> inst : tokens) {
+				for (int i = 0; i < inst.size() && i + offset < results.size(); i++) {
+					tmpList.add(results.get(i + offset));
+				}
+				result.add(tmpList);
+				tmpList = new ArrayList<>();
+				offset += inst.size();
+			}
+			/*
+			 * for (WordSennaResult wordSennaResult : results) { if
+			 * (wordSennaResult.getWord().equals(".")) { result.add(tmpList);
+			 * tmpList = new ArrayList<>(); } else {
+			 * tmpList.add(wordSennaResult); } }
+			 */
 		} else {
 			logger.info("parsing SRL without instructions");
 			String input = "";
@@ -206,6 +222,17 @@ public class SRLabeler implements IPipelineStage {
 			result.add(senna.parse(inputTmpFile));
 		}
 		return result;
+	}
+
+	private boolean containsPunctuation(List<List<Token>> tokens) {
+		for (List<Token> list : tokens) {
+			for (Token token : list) {
+				if (PUNCTUATION_MARKS.contains(token.getWord().toLowerCase().trim())) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private SRLToken createSRLToken(HashMap<String, List<Token>> roleTokens, Token verbToken, String verb) {
@@ -293,11 +320,19 @@ public class SRLabeler implements IPipelineStage {
 		int index = 0;
 		for (WordSennaResult wordSennaResult : instructionResult) {
 
-			if (wordSennaResult.getAnalysisResults().length >= 2 && !wordSennaResult.getAnalysisResults()[0].equals("-")
-					&& isSingleOrBeginning(wordSennaResult.getAnalysisResults()[1])) {
-				Token token = instruction.get(index);
-				if (isVerb(token.getPos())) {
-					verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction.get(index)));
+			if (wordSennaResult.getAnalysisResults().length >= 2 && !wordSennaResult.getAnalysisResults()[0].equals("-")) {
+				boolean isVerbBeginning = false;
+				for (String result : wordSennaResult.getAnalysisResults()) {
+					if (isSingleOrBeginningVerb(result)) {
+						isVerbBeginning = true;
+						break;
+					}
+				}
+				if (isVerbBeginning) {
+					Token token = instruction.get(index);
+					if (isVerb(token.getPos())) {
+						verbTokens.add(new Pair<String, Token>(wordSennaResult.getAnalysisResults()[0], instruction.get(index)));
+					}
 				}
 			}
 			index++;
@@ -346,17 +381,8 @@ public class SRLabeler implements IPipelineStage {
 		return result;
 	}
 
-	private String generateInstructionInputFromTokens(List<Token> tokens) {
-		String resultString = "";
-		for (Token token : tokens) {
-			resultString += token.getWord() + " ";
-		}
-
-		return resultString;
-	}
-
-	private boolean isSingleOrBeginning(String srl) {
-		return srl.startsWith("S-") || srl.startsWith("B-");
+	private boolean isSingleOrBeginningVerb(String srl) {
+		return srl.startsWith("S-V") || srl.startsWith("B-V");
 	}
 
 	/**
@@ -377,15 +403,25 @@ public class SRLabeler implements IPipelineStage {
 
 	}
 
-	private File writeBatchToTempFile(List<List<Token>> instructions) throws IOException {
+	private File writeBatchToTempFile(List<List<Token>> instructions, List<Integer> addedSeperatorIndices) throws IOException {
 		PrintWriter writer;
 		final File tempFile = File.createTempFile("input", "txt");
 		writer = new PrintWriter(tempFile);
+		boolean withPunct = containsPunctuation(instructions);
+		int i = 0;
 		for (final List<Token> instruction : instructions) {
+
 			for (final Token inst : instruction) {
 				writer.print(inst.getWord() + " ");
+				i++;
 			}
-			writer.println(". ");
+			if (!withPunct) {
+				writer.println(". ");
+				addedSeperatorIndices.add(i);
+				i++;
+			} else {
+				writer.println();
+			}
 		}
 		writer.close();
 		return tempFile;
