@@ -5,3 +5,12 @@ master:
         - mvn
     only:
         - master
+branches:
+    script:
+        - mvn test -U -B
+    tags:
+        - mvn
+    only:
+        - branches
+    except:
+        - master
