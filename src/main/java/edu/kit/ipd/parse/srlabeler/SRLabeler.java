@@ -2,6 +2,7 @@ package edu.kit.ipd.parse.srlabeler;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -91,7 +92,8 @@ public class SRLabeler implements IPipelineStage {
 		pbMapper = new PropBankMapper();
 		senna = new Senna(new String[] { "-usrtokens", "-srl" });
 		try {
-			wordNetDictionary = Dictionary.getDefaultResourceInstance();
+			InputStream is = this.getClass().getResourceAsStream(Dictionary.DEFAULT_RESOURCE_CONFIG_PATH);
+			wordNetDictionary = Dictionary.getInstance(is);
 		} catch (JWNLException e) {
 			e.printStackTrace();
 		}
