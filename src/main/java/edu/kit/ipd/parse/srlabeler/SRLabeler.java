@@ -209,7 +209,6 @@ public class SRLabeler implements IPipelineStage {
 					}
 					pos += "-" + System.getProperty("line.separator") + System.getProperty("line.separator");
 				}
-				pos = pos.substring(0, pos.length() - 1);
 				File posFile = writeToTempFile(POS_FILE_NAME, pos);
 				senna = new Senna(new String[] { "-usrtokens", "-srl", "-usrvbs", posFile.getAbsolutePath() });
 			}
