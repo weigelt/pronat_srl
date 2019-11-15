@@ -3,12 +3,19 @@ package edu.kit.ipd.parse.srlabeler;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import edu.kit.ipd.parse.luna.data.MissingDataException;
+import edu.kit.ipd.parse.luna.data.token.SRLToken;
+import edu.kit.ipd.parse.luna.data.token.Token;
+import edu.kit.ipd.parse.luna.tools.ConfigManager;
 import org.junit.Before;
 import org.junit.Test;
 import org.w3c.dom.Document;
@@ -21,6 +28,7 @@ import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.luna.tools.StringToHypothesis;
 import edu.kit.ipd.parse.shallownlp.ShallowNLP;
 
+//TODO: Create useful tests!
 public class SRLabelerTest {
 
 	ShallowNLP snlp;
@@ -28,9 +36,11 @@ public class SRLabelerTest {
 	String input;
 	PrePipelineData ppd;
 	HashMap<String, String> hm;
+	private static Properties props;
 
 	@Before
 	public void setUp() {
+		props = ConfigManager.getConfiguration(SRLabeler.class);
 		srLabeler = new SRLabeler();
 		srLabeler.init();
 		snlp = new ShallowNLP();
@@ -132,6 +142,42 @@ public class SRLabelerTest {
 		String input = hm.get("if.4.10");
 		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input));
 		executeSNLPandSRL(ppd);
+	}
+
+	@Test
+	public void testPosVerb() {
+		props.setProperty("USE_POS_TAGGER_VERBS", "true");
+		props.setProperty("PARSE_PER_INSTRUCTION", "false");
+		srLabeler.init();
+		ppd = new PrePipelineData();
+		String input = "hey armar please open the dishwasher";
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input, false));
+		executeSNLPandSRL(ppd);
+		try {
+			List<Token> tokenList = ppd.getTaggedHypotheses().get(0);
+			ppd.getTaggedHypotheses().get(0).stream().filter(e -> e instanceof SRLToken).map(SRLToken.class::cast)
+					.forEach(e -> System.out.println(e.getPbRolesetDescr()));
+		} catch (MissingDataException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Test
+	public void testPosVerbMultipleInstructions() {
+		props.setProperty("USE_POS_TAGGER_VERBS", "true");
+		props.setProperty("PARSE_PER_INSTRUCTION", "true");
+		srLabeler.init();
+		ppd = new PrePipelineData();
+		String input = "hey armar please open the dishwasher then close it";
+		ppd.setMainHypothesis(StringToHypothesis.stringToMainHypothesis(input, false));
+		executeSNLPandSRL(ppd);
+		try {
+			List<Token> tokenList = ppd.getTaggedHypotheses().get(0);
+			ppd.getTaggedHypotheses().get(0).stream().filter(e -> e instanceof SRLToken).map(SRLToken.class::cast)
+					.forEach(e -> System.out.println(e.getPbRolesetDescr()));
+		} catch (MissingDataException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void executeSNLPandSRL(PrePipelineData ppd) {
