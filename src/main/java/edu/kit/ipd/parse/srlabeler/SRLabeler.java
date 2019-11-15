@@ -207,7 +207,7 @@ public class SRLabeler implements IPipelineStage {
 							pos += "-\n";
 						}
 					}
-					pos += "-\n";
+					pos += "-\n\n";
 				}
 				pos = pos.substring(0, pos.length() - 1);
 				File posFile = writeToTempFile(POS_FILE_NAME, pos);
