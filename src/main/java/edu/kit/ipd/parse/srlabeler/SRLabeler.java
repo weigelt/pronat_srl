@@ -59,6 +59,7 @@ public class SRLabeler implements IPipelineStage {
 	private PrePipelineData prePipeData;
 
 	private boolean parsePerInstruction;
+	private boolean usePosTaggerVerbs;
 
 	private PropBankMapper pbMapper;
 
@@ -82,6 +83,7 @@ public class SRLabeler implements IPipelineStage {
 	public static final String PROP_BANK_ROLESET_DESCR = "propBankRolesetDescr";
 	public static final String PROP_BANK_ROLESET_ID = "propBankRolesetID";
 	public static final String FN_ROLE_NAME = "fnRole";
+	public static final String POS_FILE_NAME = "pos";
 
 	private static final List<String> PUNCTUATION_MARKS = List.of(".", ":", ",", ";", "!", "?");
 
@@ -89,10 +91,16 @@ public class SRLabeler implements IPipelineStage {
 	public void init() {
 		props = ConfigManager.getConfiguration(getClass());
 		parsePerInstruction = Boolean.parseBoolean(props.getProperty("PARSE_PER_INSTRUCTION"));
+		usePosTaggerVerbs = Boolean.parseBoolean(props.getProperty("USE_POS_TAGGER_VERBS"));
 		pbMapper = new PropBankMapper();
-		senna = new Senna(new String[] { "-usrtokens", "-srl" });
+		if (usePosTaggerVerbs) {
+			senna = null; //init later
+			//senna = new Senna(new String[] { "-usrtokens", "-srl", "-usrvbs " + POS_FILE_NAME + ".txt" });
+		} else {
+			senna = new Senna(new String[] { "-usrtokens", "-srl" });
+		}
 		try {
-			InputStream is = this.getClass().getResourceAsStream(Dictionary.DEFAULT_RESOURCE_CONFIG_PATH);
+			InputStream is = getClass().getResourceAsStream(Dictionary.DEFAULT_RESOURCE_CONFIG_PATH);
 			wordNetDictionary = Dictionary.getInstance(is);
 		} catch (JWNLException e) {
 			e.printStackTrace();
@@ -188,7 +196,23 @@ public class SRLabeler implements IPipelineStage {
 		if (parsePerInstruction) {
 			logger.info("parsing SRL for each instruction independently");
 			List<Integer> addedSeperatorIndices = new ArrayList<>();
-			File inputTmpFile = writeBatchToTempFile(tokens, addedSeperatorIndices);
+			File inputTmpFile = writeBatchToTempFile("input", tokens, addedSeperatorIndices);
+			if (usePosTaggerVerbs) {
+				String pos = "";
+				for (List<Token> tokenList : tokens) {
+					for (Token token : tokenList) {
+						if (token.getPos().isVerb()) {
+							pos += "VB\n";
+						} else {
+							pos += "-\n";
+						}
+					}
+					pos += "-\n";
+				}
+				pos = pos.substring(0, pos.length() - 1);
+				File posFile = writeToTempFile(POS_FILE_NAME, pos);
+				senna = new Senna(new String[] { "-usrtokens", "-srl", "-usrvbs", posFile.getAbsolutePath() });
+			}
 			List<WordSennaResult> results = senna.parse(inputTmpFile);
 			int countRemoved = 0;
 			for (Integer integer : addedSeperatorIndices) {
@@ -207,20 +231,30 @@ public class SRLabeler implements IPipelineStage {
 			}
 			/*
 			 * for (WordSennaResult wordSennaResult : results) { if
-			 * (wordSennaResult.getWord().equals(".")) { result.add(tmpList);
-			 * tmpList = new ArrayList<>(); } else {
-			 * tmpList.add(wordSennaResult); } }
+			 * (wordSennaResult.getWord().equals(".")) { result.add(tmpList); tmpList = new
+			 * ArrayList<>(); } else { tmpList.add(wordSennaResult); } }
 			 */
 		} else {
 			logger.info("parsing SRL without instructions");
 			String input = "";
+			String pos = "";
 			for (List<Token> inst : tokens) {
 				for (int i = 0; i < inst.size(); i++) {
 					input += inst.get(i).getWord() + " ";
+					if (usePosTaggerVerbs) {
+						if (inst.get(i).getPos().isVerb()) {
+							pos += "VB\n";
+						} else {
+							pos += "-\n";
+						}
+					}
 				}
 			}
-			File inputTmpFile = writeToTempFile(input);
-
+			File inputTmpFile = writeToTempFile("input", input);
+			if (usePosTaggerVerbs) {
+				File posFile = writeToTempFile(POS_FILE_NAME, pos);
+				senna = new Senna(new String[] { "-usrtokens", "-srl", "-usrvbs", posFile.getAbsolutePath() });
+			}
 			result.add(senna.parse(inputTmpFile));
 		}
 		return result;
@@ -395,9 +429,9 @@ public class SRLabeler implements IPipelineStage {
 	 *            the text to parse
 	 * @throws IOException
 	 */
-	private File writeToTempFile(String text) throws IOException {
+	private File writeToTempFile(String fileName, String text) throws IOException {
 		PrintWriter writer;
-		File tempFile = File.createTempFile("input", "txt");
+		File tempFile = File.createTempFile(fileName, "txt");
 		writer = new PrintWriter(tempFile);
 		writer.println(text);
 		writer.close();
@@ -405,9 +439,10 @@ public class SRLabeler implements IPipelineStage {
 
 	}
 
-	private File writeBatchToTempFile(List<List<Token>> instructions, List<Integer> addedSeperatorIndices) throws IOException {
+	private File writeBatchToTempFile(String fileName, List<List<Token>> instructions, List<Integer> addedSeperatorIndices)
+			throws IOException {
 		PrintWriter writer;
-		final File tempFile = File.createTempFile("input", "txt");
+		final File tempFile = File.createTempFile(fileName, "txt");
 		writer = new PrintWriter(tempFile);
 		boolean withPunct = containsPunctuation(instructions);
 		int i = 0;
