@@ -202,12 +202,12 @@ public class SRLabeler implements IPipelineStage {
 				for (List<Token> tokenList : tokens) {
 					for (Token token : tokenList) {
 						if (token.getPos().isVerb()) {
-							pos += "VB\n";
+							pos += "VB" + System.getProperty("line.separator");
 						} else {
-							pos += "-\n";
+							pos += "-" + System.getProperty("line.separator");
 						}
 					}
-					pos += "-\n\n";
+					pos += "-" + System.getProperty("line.separator") + System.getProperty("line.separator");
 				}
 				pos = pos.substring(0, pos.length() - 1);
 				File posFile = writeToTempFile(POS_FILE_NAME, pos);
@@ -243,9 +243,9 @@ public class SRLabeler implements IPipelineStage {
 					input += inst.get(i).getWord() + " ";
 					if (usePosTaggerVerbs) {
 						if (inst.get(i).getPos().isVerb()) {
-							pos += "VB\n";
+							pos += "VB" + System.getProperty("line.separator");
 						} else {
-							pos += "-\n";
+							pos += "-" + System.getProperty("line.separator");
 						}
 					}
 				}
