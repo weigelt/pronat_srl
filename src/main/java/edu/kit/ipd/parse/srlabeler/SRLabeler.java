@@ -430,7 +430,7 @@ public class SRLabeler implements IPipelineStage {
 	 */
 	private File writeToTempFile(String fileName, String text) throws IOException {
 		PrintWriter writer;
-		File tempFile = File.createTempFile(fileName, "txt");
+		File tempFile = File.createTempFile(fileName, ".txt");
 		writer = new PrintWriter(tempFile);
 		writer.println(text);
 		writer.close();
@@ -441,7 +441,7 @@ public class SRLabeler implements IPipelineStage {
 	private File writeBatchToTempFile(String fileName, List<List<Token>> instructions, List<Integer> addedSeperatorIndices)
 			throws IOException {
 		PrintWriter writer;
-		final File tempFile = File.createTempFile(fileName, "txt");
+		final File tempFile = File.createTempFile(fileName, ".txt");
 		writer = new PrintWriter(tempFile);
 		boolean withPunct = containsPunctuation(instructions);
 		int i = 0;
