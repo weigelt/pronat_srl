@@ -41,7 +41,8 @@ import net.sf.extjwnl.dictionary.Dictionary;
 
 /**
  * This class represents a {@link IPipelineStage} to annotate the previously
- * processed input sequences with their semantic roles.
+ * processed input sequences with their semantic roles. Note: Senna expects
+ * OS-dependent newline chars for the input file, but LF for the verb files.
  *
  * @author Tobias Hey - (04.01.2017) updated to fit new framework (passing
  *         SRLToken)
@@ -209,7 +210,7 @@ public class SRLabeler implements IPipelineStage {
 					}
 					pos += "-" + "\n" + "\n";
 				}
-				File posFile = writeToTempFile(POS_FILE_NAME, pos);
+				File posFile = writeToTempFile(POS_FILE_NAME, pos, "\n");
 				senna = new Senna(new String[] { "-usrtokens", "-srl", "-usrvbs", posFile.getAbsolutePath() });
 			}
 			List<WordSennaResult> results = senna.parse(inputTmpFile);
@@ -249,9 +250,9 @@ public class SRLabeler implements IPipelineStage {
 					}
 				}
 			}
-			File inputTmpFile = writeToTempFile("input", input);
+			File inputTmpFile = writeToTempFile("input", input, System.getProperty("line.seperator"));
 			if (usePosTaggerVerbs) {
-				File posFile = writeToTempFile(POS_FILE_NAME, pos);
+				File posFile = writeToTempFile(POS_FILE_NAME, pos, "\n");
 				senna = new Senna(new String[] { "-usrtokens", "-srl", "-usrvbs", posFile.getAbsolutePath() });
 			}
 			result.add(senna.parse(inputTmpFile));
@@ -428,11 +429,11 @@ public class SRLabeler implements IPipelineStage {
 	 *            the text to parse
 	 * @throws IOException
 	 */
-	private File writeToTempFile(String fileName, String text) throws IOException {
+	private File writeToTempFile(String fileName, String text, String newline) throws IOException {
 		PrintWriter writer;
 		File tempFile = File.createTempFile(fileName, ".txt");
 		writer = new PrintWriter(tempFile);
-		writer.println(text);
+		writer.print(text + "newline");
 		writer.close();
 		return tempFile;
 
