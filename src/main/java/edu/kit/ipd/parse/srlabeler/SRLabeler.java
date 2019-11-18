@@ -433,7 +433,7 @@ public class SRLabeler implements IPipelineStage {
 		PrintWriter writer;
 		File tempFile = File.createTempFile(fileName, ".txt");
 		writer = new PrintWriter(tempFile);
-		writer.print(text + "newline");
+		writer.print(text + newline);
 		writer.close();
 		return tempFile;
 
