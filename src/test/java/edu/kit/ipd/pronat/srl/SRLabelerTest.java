@@ -12,9 +12,12 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import edu.kit.ipd.parse.luna.data.MissingDataException;
-import edu.kit.ipd.parse.luna.data.token.SRLToken;
-import edu.kit.ipd.parse.luna.data.token.Token;
 import edu.kit.ipd.parse.luna.tools.ConfigManager;
+import edu.kit.ipd.pronat.prepipedatamodel.PrePipelineData;
+import edu.kit.ipd.pronat.prepipedatamodel.token.SRLToken;
+import edu.kit.ipd.pronat.prepipedatamodel.token.Token;
+import edu.kit.ipd.pronat.prepipedatamodel.tools.StringToHypothesis;
+import edu.kit.ipd.pronat.shallow_nlp.ShallowNLP;
 import org.junit.Before;
 import org.junit.Test;
 import org.w3c.dom.Document;
@@ -22,10 +25,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import edu.kit.ipd.parse.luna.data.PrePipelineData;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
-import edu.kit.ipd.parse.luna.tools.StringToHypothesis;
-import edu.kit.ipd.parse.shallownlp.ShallowNLP;
 
 //TODO: Create useful tests!
 public class SRLabelerTest {
