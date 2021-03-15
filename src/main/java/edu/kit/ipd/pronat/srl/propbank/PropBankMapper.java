@@ -1,4 +1,4 @@
-package edu.kit.ipd.parse.srlabeler.propbank;
+package edu.kit.ipd.pronat.srl.propbank;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,6 +14,7 @@ import java.util.Set;
 /**
  * This class represents the Mapping to the PropBank rolesets.
  * 
+ * @author Sebastian Weigelt
  * @author Tobias Hey
  *
  */

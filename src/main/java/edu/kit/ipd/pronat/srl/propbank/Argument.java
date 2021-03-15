@@ -1,20 +1,21 @@
-package edu.kit.ipd.parse.srlabeler.propbank;
+package edu.kit.ipd.pronat.srl.propbank;
 
 /**
  * This class represents an Argument of a {@link Roleset}
  * 
+ * @author Sebastian Weigelt
  * @author Tobias Hey
  *
  */
 public class Argument {
 
-	private int number;
+	private final int number;
 
-	private String descr;
+	private final String descr;
 
-	private String[] vnRoles;
+	private final String[] vnRoles;
 
-	private String[] fnRoles;
+	private final String[] fnRoles;
 
 	/**
 	 * Constructs a new {@link Argument}

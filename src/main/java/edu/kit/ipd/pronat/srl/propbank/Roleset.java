@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.kit.ipd.parse.srlabeler.propbank;
+package edu.kit.ipd.pronat.srl.propbank;
 
 import java.util.HashMap;
 import java.util.List;
@@ -9,22 +9,23 @@ import java.util.List;
 /**
  * This class represents a PropBank Roleset
  * 
+ * @author Sebastian Weigelt
  * @author Tobias Hey
  *
  */
 public class Roleset {
 
-	private String id;
+	private final String id;
 
-	private String descr;
+	private final String descr;
 
-	private String lemma;
+	private final String lemma;
 
-	private String[] vnFrames;
+	private final String[] vnFrames;
 
-	private String[] fnFrames;
+	private final String[] fnFrames;
 
-	private String[] eventTypes;
+	private final String[] eventTypes;
 
 	private HashMap<String, Argument> roles;
 
@@ -37,7 +38,9 @@ public class Roleset {
 	 * @param vnFrames
 	 * @param fnFrames
 	 * @param eventTypes
-	 * @param roles
+	 * @param argDescr
+	 * @param argVNRoles
+	 * @param argFNRoles
 	 */
 	public Roleset(String id, String descr, String lemma, String[] vnFrames, String[] fnFrames, String[] eventTypes, List<String> argDescr,
 			List<String[]> argVNRoles, List<String[]> argFNRoles) {
@@ -47,7 +50,7 @@ public class Roleset {
 		this.vnFrames = vnFrames;
 		this.fnFrames = fnFrames;
 		this.eventTypes = eventTypes;
-		this.roles = new HashMap<String, Argument>(argDescr.size());
+		roles = new HashMap<String, Argument>(argDescr.size());
 		for (int i = 0; i < argDescr.size(); i++) {
 			if (argDescr.get(i) != null) {
 				Argument arg = new Argument(i, argDescr.get(i), argVNRoles.get(i), argFNRoles.get(i));

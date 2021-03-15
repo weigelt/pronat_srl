@@ -1,9 +1,10 @@
-package edu.kit.ipd.parse.srlabeler.propbank;
+package edu.kit.ipd.pronat.srl.propbank;
 
 /**
  * This class represents a {@link Roleset} with its confidence in the current
  * setting
  * 
+ * @author Sebastian Weigelt
  * @author Tobias Hey
  *
  */
@@ -37,12 +38,12 @@ public class RolesetConfidence {
 	}
 
 	/**
-	 * @param rs
+	 * @param roleset
 	 * @param confidence
 	 * @param numberOfCorrectArguments
 	 */
 	public RolesetConfidence(Roleset roleset, double confidence, int numberOfCorrectArguments) {
-		this.rs = roleset;
+		rs = roleset;
 		this.confidence = confidence;
 		this.numberOfCorrectArguments = numberOfCorrectArguments;
 	}

@@ -1,4 +1,4 @@
-package edu.kit.ipd.parse.srlabeler;
+package edu.kit.ipd.pronat.srl;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,6 +14,13 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import edu.kit.ipd.pronat.prepipedatamodel.PrePipelineData;
+import edu.kit.ipd.pronat.prepipedatamodel.token.POSTag;
+import edu.kit.ipd.pronat.prepipedatamodel.token.SRLToken;
+import edu.kit.ipd.pronat.prepipedatamodel.token.Token;
+import edu.kit.ipd.pronat.senna_wrapper.Senna;
+import edu.kit.ipd.pronat.senna_wrapper.WordSennaResult;
+import edu.kit.ipd.pronat.srl.propbank.PropBankMapper;
 import org.kohsuke.MetaInfServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,19 +28,12 @@ import org.slf4j.LoggerFactory;
 import edu.kit.ipd.parse.luna.data.AbstractPipelineData;
 import edu.kit.ipd.parse.luna.data.MissingDataException;
 import edu.kit.ipd.parse.luna.data.PipelineDataCastException;
-import edu.kit.ipd.parse.luna.data.PrePipelineData;
-import edu.kit.ipd.parse.luna.data.token.POSTag;
-import edu.kit.ipd.parse.luna.data.token.SRLToken;
-import edu.kit.ipd.parse.luna.data.token.Token;
 import edu.kit.ipd.parse.luna.graph.Pair;
 import edu.kit.ipd.parse.luna.pipeline.IPipelineStage;
 import edu.kit.ipd.parse.luna.pipeline.PipelineStageException;
 import edu.kit.ipd.parse.luna.tools.ConfigManager;
-import edu.kit.ipd.parse.senna_wrapper.Senna;
-import edu.kit.ipd.parse.senna_wrapper.WordSennaResult;
-import edu.kit.ipd.parse.srlabeler.propbank.PropBankMapper;
-import edu.kit.ipd.parse.srlabeler.propbank.Roleset;
-import edu.kit.ipd.parse.srlabeler.propbank.RolesetConfidence;
+import edu.kit.ipd.pronat.srl.propbank.Roleset;
+import edu.kit.ipd.pronat.srl.propbank.RolesetConfidence;
 import net.sf.extjwnl.JWNLException;
 import net.sf.extjwnl.data.IndexWord;
 import net.sf.extjwnl.data.POS;
@@ -44,6 +44,7 @@ import net.sf.extjwnl.dictionary.Dictionary;
  * processed input sequences with their semantic roles. Note: Senna expects
  * OS-dependent newline chars for the input file, but LF for the verb files.
  *
+ * @author Sebastian Weigelt
  * @author Tobias Hey - (04.01.2017) updated to fit new framework (passing
  *         SRLToken)
  *
@@ -112,7 +113,7 @@ public class SRLabeler implements IPipelineStage {
 	public void exec(AbstractPipelineData data) throws PipelineStageException {
 
 		try {
-			prePipeData = data.asPrePipelineData();
+			prePipeData = (PrePipelineData) data.asPrePipelineData();
 		} catch (PipelineDataCastException e) {
 			logger.error("Cannot process on data - PipelineData unreadable", e);
 			throw new PipelineStageException(e);

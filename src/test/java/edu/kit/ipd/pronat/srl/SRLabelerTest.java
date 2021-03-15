@@ -1,9 +1,8 @@
-package edu.kit.ipd.parse.srlabeler;
+package edu.kit.ipd.pronat.srl;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
